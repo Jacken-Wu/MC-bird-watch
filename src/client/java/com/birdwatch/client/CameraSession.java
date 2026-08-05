@@ -7,12 +7,14 @@ import com.birdwatch.item.CameraItem;
 import com.birdwatch.registry.ModItems;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.fabricmc.fabric.api.event.client.player.ClientHotbarScrollEvents;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -137,13 +139,29 @@ public final class CameraSession {
 		}
 	}
 
+	private boolean mouseGrabbed = true;
+	private boolean prevInventoryDown;
+	/** 相册关闭后是否自动恢复取景器(由 E 键打开相册时置位) */
+	private static boolean resumeViewfinderAfterAlbum;
+
 	private void tick(Minecraft mc) {
 		if (mc.player == null) {
 			return;
 		}
 		// 有界面打开时(鼠标未被捕获)不处理取景器输入
 		if (!mc.mouseHandler.isMouseGrabbed()) {
+			prevRightPressed = false;
+			prevInventoryDown = false;
+			mouseGrabbed = false;
+			return;
+		}
+		if (!mouseGrabbed) {
+			// 屏幕刚关闭(鼠标重新抓取):以当前右键状态为基线,吞掉关屏瞬间的残留按下,
+			// 否则 ESC 关闭相册后同一右键会被判为边缘触发,立即重开界面
 			prevRightPressed = mc.mouseHandler.isRightPressed();
+			prevInventoryDown = InputConstants.isKeyDown(mc.getWindow(),
+				KeyMappingHelper.getBoundKeyOf(mc.options.keyInventory).getValue());
+			mouseGrabbed = true;
 			return;
 		}
 
@@ -159,11 +177,19 @@ public final class CameraSession {
 				} else if (holdingCamera) {
 					// 潜行+右键:客户端判定潜行(服务端 isShiftKeyDown 不可靠),C2S 请求打开镜头槽
 					ClientPlayNetworking.send(new com.birdwatch.network.ModNetworking.OpenLensMenuPayload());
-				} else if (held.is(ModItems.HANDBOOK)) {
-					mc.setScreenAndShow(new AlbumScreen());
 				}
 			}
 		} else {
+			// 取景器内 E(背包键):原始按键轮询边缘触发,退出取景器并打开相册。
+			// 不用 consumeClick —— 原版 handleKeybinds 在 END_CLIENT_TICK 之前消费 click,
+			// 会先打开背包;E 的 KeyMapping 状态已被 KeyMappingMixin 拦截,背包不会开。
+			InputConstants.Key invKey = KeyMappingHelper.getBoundKeyOf(mc.options.keyInventory);
+			boolean invDown = InputConstants.isKeyDown(mc.getWindow(), invKey.getValue());
+			if (invDown && !prevInventoryDown) {
+				exitViewfinder();
+				openAlbum(true); // 相册关闭后恢复取景器
+			}
+			prevInventoryDown = invDown;
 			if (rightPressed && !prevRightPressed) {
 				if (shiftDown) {
 					// 取景器内潜行+右键:退出取景器并打开镜头槽
@@ -193,7 +219,22 @@ public final class CameraSession {
 		return false; // 消费滚轮,阻止切换快捷栏
 	}
 
-	private void enterViewfinder() {
+	/** 打开相册;resume=true 时关闭相册后自动恢复取景器 */
+	public static void openAlbum(boolean resumeViewfinder) {
+		resumeViewfinderAfterAlbum = resumeViewfinder;
+		Minecraft.getInstance().setScreenAndShow(new AlbumScreen());
+	}
+
+	/** 相册关闭后是否恢复取景器 */
+	public static boolean shouldResumeViewfinderAfterAlbum() {
+		return resumeViewfinderAfterAlbum;
+	}
+
+	public static void clearResumeViewfinder() {
+		resumeViewfinderAfterAlbum = false;
+	}
+
+	public void enterViewfinder() {
 		ItemStack held = minecraft.player.getMainHandItem();
 		LensDefinition def = LensRegistry.byId(CameraItem.getLensId(held));
 		setLens(def);
@@ -233,6 +274,8 @@ public final class CameraSession {
 		}
 		captureQueued = true;
 		captureFlashTicks = 3;
+		// 快门音效(暂用原版按钮点击音替代,自制素材就绪后替换)
+		AbstractWidget.playButtonClickSound(minecraft.getSoundManager());
 		if (minecraft.player != null) {
 			minecraft.player.sendSystemMessage(Component.translatable("hud.birdwatch.shutter"));
 		}

@@ -13,6 +13,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * 取景器输入隔离:在按键状态更新的源头(KeyMapping.click/set)拦截,
  * 取景器激活时吞掉无关按键的按下:1-9 物品栏、攻击(左键)、背包(E)、丢弃(Q)、副手(F)。
+ * 注意:E 键的"打开相册"由 CameraSession 用原始按键状态轮询触发(避免原版
+ * handleKeybinds 先于 END_CLIENT_TICK 消费 click 打开背包)。
  */
 @Mixin(KeyMapping.class)
 public abstract class KeyMappingMixin {

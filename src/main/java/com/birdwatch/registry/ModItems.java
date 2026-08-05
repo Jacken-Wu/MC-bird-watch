@@ -28,11 +28,6 @@ public final class ModItems {
 		.setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "camera")))
 		.stacksTo(1));
 
-	/** 观鸟手册 —— 相册 Tab(M1)+ 图鉴 Tab(后续里程碑) */
-	public static final Item HANDBOOK = new Item(new Item.Properties()
-		.setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "handbook")))
-		.stacksTo(1));
-
 	/** 镜头(由 LensRegistry 定义数据,物品仅作载体) */
 	public static final Item LENS_24MM = lens("lens_24mm");
 	public static final Item LENS_50MM = lens("lens_50mm");
@@ -45,7 +40,6 @@ public final class ModItems {
 		.icon(() -> new ItemStack(CAMERA))
 		.displayItems((displayContext, entries) -> {
 			entries.accept(CAMERA);
-			entries.accept(HANDBOOK);
 			LensRegistry.LENSES.forEach(def -> entries.accept(BuiltInRegistries.ITEM.getValue(
 				Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, def.id()))));
 		})
@@ -53,7 +47,6 @@ public final class ModItems {
 
 	public static void registerAll() {
 		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "camera"), CAMERA);
-		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "handbook"), HANDBOOK);
 		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "lens_24mm"), LENS_24MM);
 		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "lens_50mm"), LENS_50MM);
 		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "lens_200mm"), LENS_200MM);
