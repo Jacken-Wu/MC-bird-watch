@@ -3,6 +3,7 @@ package com.birdwatch.registry;
 import com.birdwatch.BirdWatchMod;
 import com.birdwatch.camera.LensRegistry;
 import com.birdwatch.item.CameraItem;
+import com.birdwatch.item.PhotoPrintItem;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -35,6 +36,15 @@ public final class ModItems {
 	public static final Item LENS_400MM = lens("lens_400mm");
 	public static final Item LENS_ZOOM_70_300 = lens("lens_zoom_70_300");
 
+	/** 观鸟图鉴 —— 右键打开图鉴界面(开局自带) */
+	public static final Item HANDBOOK = new Item(new Item.Properties()
+		.setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "handbook")))
+		.stacksTo(1));
+
+	/** 印刷照片 —— 相册印刷(可裁剪)产出,贴入图鉴解锁鸟种 */
+	public static final Item PHOTO_PRINT = new PhotoPrintItem(new Item.Properties()
+		.setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "photo_print"))));
+
 	public static final CreativeModeTab BIRDWATCH_GROUP = FabricCreativeModeTab.builder()
 		.title(Component.translatable("itemGroup.birdwatch.birdwatch"))
 		.icon(() -> new ItemStack(CAMERA))
@@ -42,6 +52,7 @@ public final class ModItems {
 			entries.accept(CAMERA);
 			LensRegistry.LENSES.forEach(def -> entries.accept(BuiltInRegistries.ITEM.getValue(
 				Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, def.id()))));
+			entries.accept(HANDBOOK);
 		})
 		.build();
 
@@ -52,6 +63,8 @@ public final class ModItems {
 		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "lens_200mm"), LENS_200MM);
 		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "lens_400mm"), LENS_400MM);
 		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "lens_zoom_70_300"), LENS_ZOOM_70_300);
+		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "handbook"), HANDBOOK);
+		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "photo_print"), PHOTO_PRINT);
 		Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, BIRDWATCH_GROUP_KEY, BIRDWATCH_GROUP);
 	}
 

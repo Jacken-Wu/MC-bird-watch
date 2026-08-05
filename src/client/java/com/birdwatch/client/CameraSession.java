@@ -116,6 +116,10 @@ public final class CameraSession {
 		return "1/" + shutterString(SHUTTERS[shutterIndex]);
 	}
 
+	public double getShutter() {
+		return SHUTTERS[shutterIndex];
+	}
+
 	public int getIso() {
 		return ISOS[isoIndex];
 	}
@@ -169,10 +173,23 @@ public final class CameraSession {
 		boolean shiftDown = mc.player.isShiftKeyDown();
 		ItemStack held = mc.player.getMainHandItem();
 		boolean holdingCamera = held.is(ModItems.CAMERA);
+		boolean holdingHandbook = held.is(ModItems.HANDBOOK);
+		boolean holdingPhotoPrint = held.is(ModItems.PHOTO_PRINT);
 
 		if (!active) {
 			if (rightPressed && !prevRightPressed) {
-				if (holdingCamera && !shiftDown) {
+				if (holdingHandbook) {
+					// 观鸟图鉴:右键打开图鉴界面(纯客户端本地进度)
+					openHandbook();
+				} else if (holdingPhotoPrint) {
+					// 印刷照片:右键预览(裁剪后的照片大图)。
+					// 但若准星瞄准了可交互目标(展示框/实体/方块),不抢交互,
+					// 让原版 useOn 生效(如放入展示框)。
+					if (mc.hitResult == null || mc.hitResult.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+						Minecraft.getInstance().setScreenAndShow(
+							new com.birdwatch.client.handbook.PhotoPreviewScreen(held));
+					}
+				} else if (holdingCamera && !shiftDown) {
 					enterViewfinder();
 				} else if (holdingCamera) {
 					// 潜行+右键:客户端判定潜行(服务端 isShiftKeyDown 不可靠),C2S 请求打开镜头槽
@@ -225,6 +242,12 @@ public final class CameraSession {
 		Minecraft.getInstance().setScreenAndShow(new AlbumScreen());
 	}
 
+	/** 打开观鸟图鉴(右键手册;M2a 本地进度) */
+	public static void openHandbook() {
+		com.birdwatch.client.handbook.HandbookProgress.load();
+		Minecraft.getInstance().setScreenAndShow(new com.birdwatch.client.handbook.HandbookScreen());
+	}
+
 	/** 相册关闭后是否恢复取景器 */
 	public static boolean shouldResumeViewfinderAfterAlbum() {
 		return resumeViewfinderAfterAlbum;
@@ -232,6 +255,11 @@ public final class CameraSession {
 
 	public static void clearResumeViewfinder() {
 		resumeViewfinderAfterAlbum = false;
+	}
+
+	/** 由印刷页返回相册时恢复其取景器恢复状态(印刷打开前相册的状态) */
+	public static void setResumeViewfinderAfterAlbum(boolean value) {
+		resumeViewfinderAfterAlbum = value;
 	}
 
 	public void enterViewfinder() {
@@ -289,6 +317,13 @@ public final class CameraSession {
 			PhotoData data = snapshot();
 			BirdWatchMod.LOGGER.info("[BirdWatch] 拍照:{}mm F{} 1/{} ISO{} 对焦{}m", data.focalLength, data.aperture,
 				shutterString(data.shutter), data.iso, (int) data.focusDistance);
+			// M2a:拍摄判定纯客户端,向服务端授奖(重复触发由服务端成就系统过滤)
+			for (com.birdwatch.client.photo.ScoredBird bird : data.birds()) {
+				if (bird.qualifies()) {
+					ClientPlayNetworking.send(new com.birdwatch.network.ModNetworking.PhotoRatedPayload(
+						bird.speciesId(), bird.score()));
+				}
+			}
 			// 照片源 = dof_target(虚化处理后的画面本体,不含 UI)
 			if (dofTarget != null) {
 				Screenshot.takeScreenshot(dofTarget, image -> PhotoSaver.save(image, data));
@@ -666,6 +701,9 @@ public final class CameraSession {
 	}
 
 	public PhotoData snapshot() {
+		// M2a:拍照时对画面内每只鸟六维评分(纯客户端判定)
+		java.util.List<com.birdwatch.client.photo.ScoredBird> birds =
+			com.birdwatch.client.photo.PhotoScorer.scoreScene(minecraft, this);
 		return new PhotoData(
 			lens != null ? lens.id() : "",
 			focalLength,
@@ -674,7 +712,8 @@ public final class CameraSession {
 			ISOS[isoIndex],
 			focusDistance,
 			lastTargetDistance,
-			(float) computeFov()
+			(float) computeFov(),
+			birds
 		);
 	}
 
@@ -714,7 +753,8 @@ public final class CameraSession {
 		int iso,
 		double focusDistance,
 		double targetDistance,
-		float fov
+		float fov,
+		java.util.List<com.birdwatch.client.photo.ScoredBird> birds
 	) {
 	}
 }

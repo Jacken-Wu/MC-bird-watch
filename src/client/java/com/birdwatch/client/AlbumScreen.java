@@ -44,6 +44,8 @@ public class AlbumScreen extends Screen {
 	private Button closeButton;
 	private Button prevButton;
 	private Button nextButton;
+	private Button printButton;
+	private Button deleteButton;
 
 	public AlbumScreen() {
 		super(Component.translatable("screen.birdwatch.album"));
@@ -75,6 +77,27 @@ public class AlbumScreen extends Screen {
 			page = Math.min(totalPages - 1, page + 1);
 			init();
 		}).bounds(this.width / 2 + 70, this.height - 28, 60, 20).build();
+		// M2a:大图详情页「印刷」入口 → 裁剪印刷界面(关闭后返回相册;恢复取景器状态由印刷页带回)
+		printButton = Button.builder(Component.translatable("screen.birdwatch.print.open"), b -> {
+			boolean resume = CameraSession.shouldResumeViewfinderAfterAlbum();
+			CameraSession.clearResumeViewfinder(); // 打开印刷时先清标志,避免 AlbumScreen.onClose 误恢复取景器
+			Minecraft.getInstance().setScreenAndShow(
+				new com.birdwatch.client.handbook.PrintScreen(selected, AlbumScreen.this, resume));
+		}).bounds(this.width / 2 - 50, this.height - 50, 100, 20).build();
+		// M2a:删除照片(大图详情页显示;印刷目录 photos/印刷/ 独立,不受影响)
+		deleteButton = Button.builder(Component.translatable("screen.birdwatch.album.delete"), b -> {
+			if (selected == null) {
+				return;
+			}
+			try {
+				Files.deleteIfExists(selected.pngPath());
+				Files.deleteIfExists(selected.jsonPath());
+			} catch (IOException ex) {
+				BirdWatchMod.LOGGER.error("[BirdWatch] 删除照片失败 {}", selected.pngPath(), ex);
+			}
+			selected = null;
+			init();
+		}).bounds(this.width / 2 - 160, this.height - 50, 60, 20).build();
 		boolean paged = photos.size() > pageSize();
 		// visible/active 全部显式设置:隐藏按钮仍会被 isMouseOver 命中,
 		// 漏设 visible 会导致隐形按钮抢走同区域点击(关闭按钮被返回按钮遮挡的根因)
@@ -82,6 +105,8 @@ public class AlbumScreen extends Screen {
 		closeButton.visible = true;
 		prevButton.visible = paged;
 		nextButton.visible = paged;
+		printButton.visible = false; // 仅大图页显示
+		deleteButton.visible = false; // 仅大图页显示
 		closeButton.active = true;
 		prevButton.active = page > 0;
 		nextButton.active = page < totalPages - 1;
@@ -90,6 +115,8 @@ public class AlbumScreen extends Screen {
 		this.addRenderableWidget(closeButton);
 		this.addRenderableWidget(prevButton);
 		this.addRenderableWidget(nextButton);
+		this.addRenderableWidget(printButton);
+		this.addRenderableWidget(deleteButton);
 	}
 
 	@Override
@@ -199,12 +226,40 @@ public class AlbumScreen extends Screen {
 		String focalStr = focal instanceof Number n ? (int) Math.round(n.doubleValue()) + "mm" : String.valueOf(focal);
 		graphics.text(minecraft.font, Component.literal("f/" + aperture + "  " + shutterStr
 			+ "  ISO " + iso + "  " + focalStr), x, y + imgH + 6, 0xFFCCCCCC);
+		// M2a:画面内鸟的评分摘要(拍摄对象 + 分数 + 档位)
+		Object birds = record.data().get("birds");
+		if (birds instanceof List<?> list && !list.isEmpty()) {
+			StringBuilder line = new StringBuilder();
+			for (Object o : list) {
+				if (!(o instanceof Map<?, ?> m)) {
+					continue;
+				}
+				if (line.length() > 0) {
+					line.append("   ");
+				}
+				String species = String.valueOf(m.get("species"));
+				Object score = m.get("score");
+				line.append(species).append(": ").append(score).append("分");
+			}
+			if (line.length() > 0) {
+				graphics.text(minecraft.font, Component.literal(line.toString()), x, y + imgH + 18, 0xFF88CCFF);
+			}
+		}
 		backButton.setX(this.width / 2 - 50);
 		backButton.setY(this.height - 28);
 		backButton.visible = true;
 		closeButton.visible = false;
 		prevButton.visible = false;
 		nextButton.visible = false;
+		// 印刷按钮 + 删除按钮:详情页下方(删除在左,印刷在右)
+		deleteButton.setX(this.width / 2 - 160);
+		deleteButton.setY(this.height - 50);
+		deleteButton.visible = true;
+		deleteButton.active = true;
+		printButton.setX(this.width / 2 - 50);
+		printButton.setY(this.height - 50);
+		printButton.visible = true;
+		printButton.active = true;
 	}
 
 	@Override

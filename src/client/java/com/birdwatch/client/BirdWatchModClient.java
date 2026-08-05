@@ -1,7 +1,11 @@
 package com.birdwatch.client;
 
 import com.birdwatch.BirdWatchMod;
+import com.birdwatch.client.entity.HeronRenderer;
+import com.birdwatch.registry.ModEntities;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.ModelLayerRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
@@ -33,6 +37,32 @@ public class BirdWatchModClient implements ClientModInitializer {
 		ViewfinderHud.register();
 		MenuScreensRegistry.register();
 		hideVanillaHudInViewfinder();
+		registerEntityRenderers();
+		registerPhotoPrintSpecialModel();
+	}
+
+	/** 白鹭渲染器 + 模型层注册 */
+	private static void registerEntityRenderers() {
+		ModelLayerRegistry.registerModelLayer(HeronRenderer.HERON_LAYER, HeronRenderer.HERON_LAYER_PROVIDER);
+		EntityRendererRegistry.register(ModEntities.HERON, HeronRenderer::new);
+	}
+
+	/** 印刷照片特殊模型注册(反射:原版 ID_MAPPER 为私有,无公开 API) */
+	public static void registerPhotoPrintSpecialModel() {
+		try {
+			java.lang.reflect.Field field = net.minecraft.client.renderer.special.SpecialModelRenderers.class
+				.getDeclaredField("ID_MAPPER");
+			field.setAccessible(true);
+			@SuppressWarnings("unchecked")
+			net.minecraft.util.ExtraCodecs.LateBoundIdMapper<net.minecraft.resources.Identifier,
+				com.mojang.serialization.MapCodec<? extends net.minecraft.client.renderer.special.SpecialModelRenderer.Unbaked<?>>> mapper
+				= (net.minecraft.util.ExtraCodecs.LateBoundIdMapper) field.get(null);
+			mapper.put(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "photo_print"),
+				com.birdwatch.client.photo.PhotoPrintSpecialModel.MAP_CODEC);
+			BirdWatchMod.LOGGER.info("[BirdWatch] 印刷照片特殊模型已注册");
+		} catch (Exception e) {
+			BirdWatchMod.LOGGER.error("[BirdWatch] 印刷照片特殊模型注册失败", e);
+		}
 	}
 
 	/** 用条件包装器替换原版 HUD 元素:取景器激活时不绘制,其余时间原样透传 */

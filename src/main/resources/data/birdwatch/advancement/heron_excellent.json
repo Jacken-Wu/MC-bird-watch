@@ -1,0 +1,27 @@
+{
+	"parent": "birdwatch:heron_unlock",
+	"display": {
+		"icon": {
+			"id": "birdwatch:photo_print"
+		},
+		"title": {
+			"translate": "advancements.birdwatch.heron_excellent.title"
+		},
+		"description": {
+			"translate": "advancements.birdwatch.heron_excellent.description"
+		},
+		"frame": "goal",
+		"show_toast": true,
+		"announce_to_chat": true,
+		"hidden": false
+	},
+	"criteria": {
+		"photo_rated": {
+			"trigger": "birdwatch:photo_rated",
+			"conditions": {
+				"species": "heron",
+				"minScore": 80
+			}
+		}
+	}
+}

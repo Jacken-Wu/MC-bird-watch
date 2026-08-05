@@ -29,9 +29,8 @@ public final class PhotoSaver {
 
 	public static void save(NativeImage image, CameraSession.PhotoData data) {
 		NativeImage cropped = cropViewfinder(image);
-		Path dir = FabricLoader.getInstance().getGameDir()
-			.resolve(BirdWatchConfig.photoDirectory)
-			.resolve("未收录");
+		// M2a:有鸟的照片按主体鸟(得分最高)归档,无鸟 → 未收录/
+		Path dir = archiveDir(data);
 		try {
 			Files.createDirectories(dir);
 		} catch (IOException e) {
@@ -84,6 +83,15 @@ public final class PhotoSaver {
 		return cropped;
 	}
 
+	/** 归档目录:主体鸟 = 画面内得分最高者;无鸟 → 未收录/ */
+	private static Path archiveDir(CameraSession.PhotoData data) {
+		Path root = FabricLoader.getInstance().getGameDir().resolve(BirdWatchConfig.photoDirectory);
+		if (data.birds().isEmpty()) {
+			return root.resolve("未收录");
+		}
+		return root.resolve(com.birdwatch.bird.SpeciesRegistry.directoryName(data.birds().get(0).speciesId()));
+	}
+
 	private static Map<String, Object> toMap(CameraSession.PhotoData data) {
 		Map<String, Object> map = new LinkedHashMap<>();
 		map.put("lensId", data.lensId());
@@ -94,7 +102,22 @@ public final class PhotoSaver {
 		map.put("focusDistance", data.focusDistance());
 		map.put("targetDistance", data.targetDistance());
 		map.put("fov", data.fov());
-		map.put("species", new String[0]); // M2:画面内鸟种
+		map.put("species", data.birds().isEmpty() ? "" : data.birds().get(0).speciesId()); // 主体鸟 id
+		map.put("birds", data.birds().stream().map(PhotoSaver::birdMap).toList());
+		return map;
+	}
+
+	private static Map<String, Object> birdMap(com.birdwatch.client.photo.ScoredBird bird) {
+		Map<String, Object> map = new LinkedHashMap<>();
+		map.put("species", bird.speciesId());
+		map.put("score", bird.score());
+		map.put("tier", bird.tier());
+		map.put("focus", bird.focus());
+		map.put("composition", bird.composition());
+		map.put("motion", bird.motion());
+		map.put("noise", bird.noise());
+		map.put("occlusion", bird.occlusion());
+		map.put("stability", bird.stability());
 		return map;
 	}
 }

@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "birdwatch:item/photo_print",
+    "model": {
+      "type": "birdwatch:photo_print"
+    }
+  }
+}

@@ -23,6 +23,11 @@ public final class BirdWatchConfig {
 	/** 照片存储目录(相对 .minecraft),M1 相机里程碑使用 */
 	public static String photoDirectory = "birdwatch/photos";
 
+	/** 照片根目录(绝对路径):.minecraft/<photoDirectory> */
+	public static Path photosRoot() {
+		return FabricLoader.getInstance().getGameDir().resolve(photoDirectory);
+	}
+
 	private BirdWatchConfig() {
 	}
 

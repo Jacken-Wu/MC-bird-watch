@@ -128,9 +128,7 @@ public final class ViewfinderHud implements HudElement {
 			g.text(font, shake, leftX + HIST_W + 8, histY + HIST_H - 10, COLOR_WARN);
 		}
 
-		// ---- 顶部提示(垂直居中于黑色区域) ----
-		Component hint = Component.translatable("hud.birdwatch.hint");
-		g.text(font, hint, w / 2 - font.width(hint) / 2, (TOP_UI - 9) / 2, COLOR_HINT);
+		// 无镜头警告(顶部中央;ESC 提示已按用户要求移除)
 		if (session.getLens() == null) {
 			Component noLens = Component.translatable("hud.birdwatch.no_lens");
 			g.text(font, noLens, w / 2 - font.width(noLens) / 2, TOP_UI + 4, COLOR_WARN);

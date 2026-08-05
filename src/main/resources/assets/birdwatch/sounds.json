@@ -1,0 +1,22 @@
+{
+	"heron_ambient": {
+		"subtitle": "subtitles.birdwatch.heron_ambient",
+		"sounds": [
+			{ "name": "minecraft:mob/parrot/idle1", "volume": 0.7 },
+			{ "name": "minecraft:mob/parrot/idle2", "volume": 0.7 },
+			{ "name": "minecraft:mob/parrot/idle3", "volume": 0.7 },
+			{ "name": "minecraft:mob/parrot/idle4", "volume": 0.7 },
+			{ "name": "minecraft:mob/parrot/idle5", "volume": 0.7 },
+			{ "name": "minecraft:mob/parrot/idle6", "volume": 0.7 }
+		]
+	},
+	"heron_scared": {
+		"subtitle": "subtitles.birdwatch.heron_scared",
+		"sounds": [
+			{ "name": "minecraft:mob/parrot/fly1", "volume": 0.9 },
+			{ "name": "minecraft:mob/parrot/fly2", "volume": 0.9 },
+			{ "name": "minecraft:mob/parrot/fly3", "volume": 0.9 },
+			{ "name": "minecraft:mob/parrot/fly4", "volume": 0.9 }
+		]
+	}
+}
