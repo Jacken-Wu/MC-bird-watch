@@ -1,0 +1,40 @@
+{
+    "passes": [
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "birdwatch:post/dof",
+            "inputs": [
+                {
+                    "sampler_name": "In",
+                    "target": "minecraft:main",
+                    "bilinear": true
+                },
+                {
+                    "sampler_name": "InDepth",
+                    "target": "minecraft:main",
+                    "use_depth_buffer": true
+                }
+            ],
+            "output": "birdwatch:dof_target",
+            "uniforms": {
+                "DofConfig": [
+                    {
+                        "name": "ApertureScale",
+                        "type": "float",
+                        "value": 1.0
+                    },
+                    {
+                        "name": "Near",
+                        "type": "float",
+                        "value": 0.05
+                    },
+                    {
+                        "name": "Far",
+                        "type": "float",
+                        "value": 1000.0
+                    }
+                ]
+            }
+        }
+    ]
+}

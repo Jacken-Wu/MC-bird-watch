@@ -1,0 +1,29 @@
+{
+	"schemaVersion": 1,
+	"id": "birdwatch",
+	"version": "${version}",
+	"name": "BirdWatch",
+	"description": "观鸟摄影模组:相机、镜头、鸟类图鉴。A birdwatching photography mod: cameras, lenses, and a bird encyclopedia.",
+	"authors": [
+		"Jacken"
+	],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.birdwatch.BirdWatchMod"
+		],
+		"client": [
+			"com.birdwatch.client.BirdWatchModClient"
+		]
+	},
+	"mixins": [
+		"birdwatch.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

@@ -1,0 +1,17 @@
+{
+	"required": true,
+	"package": "com.birdwatch.client.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"CameraMixin",
+		"GuiMixin",
+		"KeyMappingMixin",
+		"ItemInHandRendererMixin",
+		"GameRendererAccessor",
+		"GameRendererMixin",
+		"ShaderManagerAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
