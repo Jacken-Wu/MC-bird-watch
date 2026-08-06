@@ -42,7 +42,7 @@ public final class SpeciesRegistry {
 		List.of(Biomes.SWAMP, Biomes.MANGROVE_SWAMP, Biomes.RIVER, Biomes.BEACH),
 		12, 1, 3);
 
-	/** 树麻雀(Passer montanus)—— 村落/聚落常见小鸟(M4a 验证物种,美术占位) */
+	/** 树麻雀(Passer montanus)—— 村落/聚落常见小鸟 */
 	public static final BirdSpecies SPARROW = new BirdSpecies(
 		"sparrow", "麻雀", SparrowEntity.class, BirdSpecies.Habitat.VILLAGE,
 		true, 0.25f, 0.35f,
@@ -53,7 +53,7 @@ public final class SpeciesRegistry {
 		false,
 		ModSounds.SPARROW_AMBIENT, ModSounds.SPARROW_SCARED,
 		ModSounds.SPARROW_HURT, ModSounds.SPARROW_DEATH, ModSounds.SPARROW_FLAP,
-		"little_egret", // 美术占位:复用白鹭资源,用户出稿后改 "sparrow"
+		"sparrow",
 		List.of(Biomes.PLAINS, Biomes.SUNFLOWER_PLAINS, Biomes.MEADOW,
 			Biomes.FOREST, Biomes.BIRCH_FOREST, Biomes.SAVANNA),
 		40, 1, 4);
