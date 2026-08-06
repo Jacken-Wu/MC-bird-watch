@@ -1,0 +1,26 @@
+{
+  "parent": "birdwatch:handbook_first",
+  "display": {
+    "icon": {
+      "id": "birdwatch:handbook"
+    },
+    "title": {
+      "translate": "advancements.birdwatch.handbook_little_egret.title"
+    },
+    "description": {
+      "translate": "advancements.birdwatch.handbook_little_egret.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "handbook_unlock": {
+      "trigger": "birdwatch:handbook_unlock",
+      "conditions": {
+        "species": "little_egret"
+      }
+    }
+  }
+}

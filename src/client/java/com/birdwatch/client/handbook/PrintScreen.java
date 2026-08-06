@@ -258,20 +258,12 @@ public class PrintScreen extends Screen {
 			return;
 		}
 
-		ItemStack print = new ItemStack(ModItems.PHOTO_PRINT);
-		net.minecraft.world.item.component.CustomData.update(
-			net.minecraft.core.component.DataComponents.CUSTOM_DATA, print, tag -> {
-				tag.putString(PhotoPrintItem.KEY_PHOTO, relative);
-				tag.putString(PhotoPrintItem.KEY_SPECIES, species);
-				tag.putInt(PhotoPrintItem.KEY_SCORE, score);
-				tag.putString(PhotoPrintItem.KEY_TIER, tier);
-				tag.putString(PhotoPrintItem.KEY_CROP, "0,0,1,1"); // 裁剪已烘焙进文件
-			});
-		// 消耗纸 + 放入背包
-		mc.player.getInventory().getItem(paperSlot).shrink(1);
-		if (!mc.player.getInventory().add(print)) {
-			mc.player.drop(print, false);
-		}
+		// 印刷请求走服务端:物品由服务端创建入包、服务端消耗纸
+		// (客户端直接 add 到本地背包是幽灵物品,生存模式点击即被同步清掉)
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
+			new com.birdwatch.network.ModNetworking.PrintRequestPayload(
+				relative, species, score, tier, "0,0,1,1")); // 裁剪已烘焙进文件
+		BirdWatchMod.LOGGER.info("[Print] 印刷请求已发送 path={}", relative);
 		mc.player.sendSystemMessage(Component.translatable("screen.birdwatch.print.done"));
 		this.onClose();
 	}
@@ -300,7 +292,7 @@ public class PrintScreen extends Screen {
 			}
 			source.close();
 
-			Path dir = BirdWatchConfig.photosRoot().resolve("印刷");
+			Path dir = com.birdwatch.client.photo.PhotoStorage.photosRoot().resolve("印刷");
 			Files.createDirectories(dir);
 			String base = record.name().replace(".png", "");
 			Path png = dir.resolve(base + ".png");
@@ -313,13 +305,13 @@ public class PrintScreen extends Screen {
 			// 配套元数据(复制原照片的 birds 评分,返还时用于重建印刷物品)
 			String jsonName = png.getFileName().toString().replace(".png", ".json");
 			Map<String, Object> meta = new java.util.LinkedHashMap<>();
-			meta.put("source", BirdWatchConfig.photosRoot().relativize(record.pngPath()).toString().replace('\\', '/'));
+			meta.put("source", com.birdwatch.client.photo.PhotoStorage.photosRoot().relativize(record.pngPath()).toString().replace('\\', '/'));
 			meta.put("crop", cropStr);
 			meta.put("birds", record.data().get("birds"));
 			Files.writeString(png.resolveSibling(jsonName),
 				new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(meta),
 				java.nio.charset.StandardCharsets.UTF_8);
-			return BirdWatchConfig.photosRoot().relativize(png).toString().replace('\\', '/');
+			return com.birdwatch.client.photo.PhotoStorage.photosRoot().relativize(png).toString().replace('\\', '/');
 		} catch (IOException e) {
 			BirdWatchMod.LOGGER.error("[BirdWatch] 裁剪照片保存失败", e);
 			return null;

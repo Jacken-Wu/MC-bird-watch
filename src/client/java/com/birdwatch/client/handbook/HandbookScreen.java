@@ -60,7 +60,7 @@ public class HandbookScreen extends Screen {
 	public HandbookScreen() {
 		super(Component.translatable("screen.birdwatch.handbook"));
 		// M2a 单物种;M4 遍历 SpeciesRegistry 生成条目列表
-		this.speciesId = SpeciesRegistry.HERON_ID;
+		this.speciesId = SpeciesRegistry.LITTLE_EGRET_ID;
 	}
 
 	@Override
@@ -214,7 +214,7 @@ public class HandbookScreen extends Screen {
 		}
 
 		// ---- 左栏:物种名 + 预览区(= 贴入槽,点击大图贴入印刷照片) ----
-		graphics.text(mc.font, Component.translatable("handbook.birdwatch.heron.name"),
+		graphics.text(mc.font, Component.translatable("handbook.birdwatch.little_egret.name"),
 			pl + 10, PANEL_TOP + 6, 0xFFFFFFFF);
 		int[] pv = previewRect();
 		int px = pv[0], py = pv[1];
@@ -279,7 +279,7 @@ public class HandbookScreen extends Screen {
 	/** 右栏文本行(预计算;标题行特殊颜色) */
 	private List<String> buildRightLines(Minecraft mc, boolean unlocked, int textW) {
 		List<String> lines = new ArrayList<>();
-		String sci = unlocked ? Component.translatable("handbook.birdwatch.heron.scientific").getString() : "???";
+		String sci = unlocked ? Component.translatable("handbook.birdwatch.little_egret.scientific").getString() : "???";
 		lines.add("[学名] " + sci);
 		int score = maxScore();
 		String tierKey = score >= 95 ? "handbook.birdwatch.tier.perfect"
@@ -288,10 +288,10 @@ public class HandbookScreen extends Screen {
 		lines.add("[评分] " + score + "  " + Component.translatable(tierKey).getString());
 		lines.add("");
 		lines.add("[习性]");
-		lines.addAll(wrapText(mc, Component.translatable("handbook.birdwatch.heron.habitat").getString(), textW));
+		lines.addAll(wrapText(mc, Component.translatable("handbook.birdwatch.little_egret.habitat").getString(), textW));
 		lines.add("");
 		lines.add("[拍摄建议]");
-		lines.addAll(wrapText(mc, Component.translatable("handbook.birdwatch.heron.tip").getString(), textW));
+		lines.addAll(wrapText(mc, Component.translatable("handbook.birdwatch.little_egret.tip").getString(), textW));
 		return lines;
 	}
 
@@ -400,7 +400,7 @@ public class HandbookScreen extends Screen {
 		}
 		if (candidates.isEmpty()) {
 			showNotice(Component.translatable("screen.birdwatch.handbook.no_print",
-				Component.translatable("handbook.birdwatch.heron.name")).getString());
+				Component.translatable("handbook.birdwatch.little_egret.name")).getString());
 			return;
 		}
 		if (candidates.size() == 1) {
@@ -421,26 +421,21 @@ public class HandbookScreen extends Screen {
 		String photo = tag.getString(PhotoPrintItem.KEY_PHOTO).orElse("");
 		String crop = tag.getString(PhotoPrintItem.KEY_CROP).orElse("");
 		Minecraft mc = Minecraft.getInstance();
-		// 已有旧照片时:把旧照片返还为印刷物品(贴入新照片会覆盖槽位)
+		// 旧照片返还/新照片消耗全部走服务端(客户端直接改背包是幽灵物品)
 		String oldPhoto = HandbookProgress.slotPhoto(speciesId);
-		if (oldPhoto != null && !oldPhoto.equals(photo) && mc.player != null) {
-			ItemStack oldPrint = createPrintFromPhoto(oldPhoto, HandbookProgress.slotCrop(speciesId));
-			if (oldPrint != null) {
-				if (!mc.player.getInventory().add(oldPrint)) {
-					mc.player.drop(oldPrint, false);
-				}
-			}
-		}
-		// 消耗物品 + 解锁 + 成就授奖(拍摄判定纯客户端,成就走 C2S)
-		print.shrink(1);
+		BirdWatchMod.LOGGER.info("[Print] 图鉴贴入 species={} photo={}",
+			speciesId, photo);
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
+			new com.birdwatch.network.ModNetworking.HandbookUnlockPayload(speciesId, photo,
+				oldPhoto != null ? oldPhoto : "",
+				oldPhoto != null ? HandbookProgress.slotCrop(speciesId) : ""));
+		// 解锁 + 进度保存(客户端文件)
 		HandbookProgress.unlock(speciesId, photo, crop);
 		HandbookProgress.save();
-		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
-			new com.birdwatch.network.ModNetworking.HandbookUnlockPayload(speciesId));
 		// 返回图鉴界面并提示
 		if (returnScreen instanceof HandbookScreen handbook) {
 			handbook.showNotice(Component.translatable("screen.birdwatch.handbook.unlocked_msg",
-				Component.translatable("handbook.birdwatch.heron.name")).getString());
+				Component.translatable("handbook.birdwatch.little_egret.name")).getString());
 		}
 	}
 
@@ -453,7 +448,7 @@ public class HandbookScreen extends Screen {
 	/** 由照片路径(相对 photos)+ 裁剪矩形重建印刷照片物品(旧照片返还用);评分从照片元数据读取 */
 	private static ItemStack createPrintFromPhoto(String photoPath, String crop) {
 		try {
-			Path json = com.birdwatch.config.BirdWatchConfig.photosRoot()
+			Path json = com.birdwatch.client.photo.PhotoStorage.photosRoot()
 				.resolve(photoPath).resolveSibling(
 					java.nio.file.Path.of(photoPath).getFileName().toString().replace(".png", ".json"));
 			if (!Files.exists(json)) {
@@ -506,7 +501,7 @@ public class HandbookScreen extends Screen {
 	// ------------------------------------------------------------------
 
 	private Identifier speciesTexture() {
-		return Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "textures/entity/heron.png");
+		return Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "textures/entity/little_egret.png");
 	}
 
 	/** 照片预览:读照片 PNG,按印刷裁剪矩形裁切后注册纹理(缓存 key 含裁剪);返回纹理与尺寸 */
@@ -516,7 +511,7 @@ public class HandbookScreen extends Screen {
 		if (cached != null) {
 			return cached;
 		}
-		Path root = com.birdwatch.config.BirdWatchConfig.photosRoot();
+		Path root = com.birdwatch.client.photo.PhotoStorage.photosRoot();
 		Path png = root.resolve(relativePath);
 		if (!Files.exists(png)) {
 			return null;

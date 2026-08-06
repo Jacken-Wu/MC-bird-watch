@@ -1,0 +1,27 @@
+{
+  "parent": "birdwatch:little_egret_excellent",
+  "display": {
+    "icon": {
+      "id": "birdwatch:photo_print"
+    },
+    "title": {
+      "translate": "advancements.birdwatch.little_egret_perfect.title"
+    },
+    "description": {
+      "translate": "advancements.birdwatch.little_egret_perfect.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "photo_rated": {
+      "trigger": "birdwatch:photo_rated",
+      "conditions": {
+        "species": "little_egret",
+        "minScore": 95
+      }
+    }
+  }
+}

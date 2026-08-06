@@ -1,6 +1,6 @@
 package com.birdwatch.bird;
 
-import com.birdwatch.entity.HeronEntity;
+import com.birdwatch.entity.LittleEgretEntity;
 import net.minecraft.world.entity.Entity;
 
 import java.util.Optional;
@@ -12,12 +12,12 @@ import java.util.Optional;
  * directoryName 为照片归档目录(zh 主语言,如「白鹭」)。
  */
 public final class SpeciesRegistry {
-	public static final String HERON_ID = "heron";
+	public static final String LITTLE_EGRET_ID = "little_egret";
 
 	/** 实体 → 物种 id;非观鸟模组实体返回空 */
 	public static Optional<String> speciesIdOf(Entity entity) {
-		if (entity instanceof HeronEntity) {
-			return Optional.of(HERON_ID);
+		if (entity instanceof LittleEgretEntity) {
+			return Optional.of(LITTLE_EGRET_ID);
 		}
 		return Optional.empty();
 	}
@@ -25,7 +25,7 @@ public final class SpeciesRegistry {
 	/** 物种 id → 照片归档目录名(无中文名回退 id) */
 	public static String directoryName(String speciesId) {
 		return switch (speciesId) {
-			case HERON_ID -> "白鹭";
+			case LITTLE_EGRET_ID -> "白鹭";
 			default -> speciesId;
 		};
 	}

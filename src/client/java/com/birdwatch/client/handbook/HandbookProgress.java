@@ -101,7 +101,6 @@ public final class HandbookProgress {
 	}
 
 	private static Path file() {
-		return FabricLoader.getInstance().getGameDir()
-			.resolve(com.birdwatch.config.BirdWatchConfig.photoDirectory).resolveSibling("handbook.json");
+		return com.birdwatch.client.photo.PhotoStorage.photosRoot().resolveSibling("handbook.json");
 	}
 }

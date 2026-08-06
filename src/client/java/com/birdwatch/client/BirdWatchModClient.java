@@ -1,11 +1,10 @@
 package com.birdwatch.client;
 
 import com.birdwatch.BirdWatchMod;
-import com.birdwatch.client.entity.HeronRenderer;
+import com.birdwatch.client.entity.LittleEgretGeoRenderer;
 import com.birdwatch.registry.ModEntities;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
-import net.fabricmc.fabric.api.client.rendering.v1.ModelLayerRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
@@ -41,10 +40,9 @@ public class BirdWatchModClient implements ClientModInitializer {
 		registerPhotoPrintSpecialModel();
 	}
 
-	/** 白鹭渲染器 + 模型层注册 */
+	/** 小白鹭 GeckoLib 渲染器注册(M2b) */
 	private static void registerEntityRenderers() {
-		ModelLayerRegistry.registerModelLayer(HeronRenderer.HERON_LAYER, HeronRenderer.HERON_LAYER_PROVIDER);
-		EntityRendererRegistry.register(ModEntities.HERON, HeronRenderer::new);
+		EntityRendererRegistry.register(ModEntities.LITTLE_EGRET, LittleEgretGeoRenderer::new);
 	}
 
 	/** 印刷照片特殊模型注册(反射:原版 ID_MAPPER 为私有,无公开 API) */

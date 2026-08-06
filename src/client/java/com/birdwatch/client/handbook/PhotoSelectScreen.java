@@ -36,6 +36,8 @@ public class PhotoSelectScreen extends Screen {
 	private final Map<String, Identifier> textureCache = new HashMap<>();
 	private Button cancelButton;
 	private int hovered = -1;
+	/** 滚动偏移(照片多时列表超出可视区) */
+	private int scroll;
 
 	public PhotoSelectScreen(List<ItemStack> candidates, String speciesId, Screen returnScreen) {
 		super(Component.translatable("screen.birdwatch.photo_select"));
@@ -68,6 +70,34 @@ public class PhotoSelectScreen extends Screen {
 		return 40;
 	}
 
+	/** 列表可视区底部(取消按钮上方) */
+	private int viewportBottom() {
+		return this.height - 34;
+	}
+
+	/** 列表总高度 */
+	private int totalHeight() {
+		return candidates.size() * (ROW_H + 4);
+	}
+
+	/** 最大滚动偏移 */
+	private int maxScroll() {
+		return Math.max(0, totalHeight() - (viewportBottom() - listTop()));
+	}
+
+	private int clampScroll(int s) {
+		return Math.max(0, Math.min(s, maxScroll()));
+	}
+
+	@Override
+	public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+		if (super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
+			return true;
+		}
+		scroll = clampScroll(scroll - (int) Math.round(scrollY) * (ROW_H + 4));
+		return true;
+	}
+
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
 		Minecraft mc = Minecraft.getInstance();
@@ -79,7 +109,10 @@ public class PhotoSelectScreen extends Screen {
 		int left = this.width / 2 - colW / 2;
 		hovered = -1;
 		for (int i = 0; i < candidates.size(); i++) {
-			int y = listTop() + i * (ROW_H + 4);
+			int y = listTop() + i * (ROW_H + 4) - scroll;
+			if (y + ROW_H < listTop() || y > viewportBottom()) {
+				continue; // 视口外,跳过渲染与命中
+			}
 			boolean over = mouseX >= left && mouseX < left + colW && mouseY >= y && mouseY < y + ROW_H;
 			if (over) {
 				hovered = i;
@@ -136,7 +169,7 @@ public class PhotoSelectScreen extends Screen {
 		if (cached != null) {
 			return cached;
 		}
-		Path png = BirdWatchConfig.photosRoot().resolve(photo);
+		Path png = com.birdwatch.client.photo.PhotoStorage.resolvePhoto(photo);
 		if (!Files.exists(png)) {
 			return null;
 		}

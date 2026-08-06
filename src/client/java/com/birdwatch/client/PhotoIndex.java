@@ -26,7 +26,7 @@ public final class PhotoIndex {
 
 	@SuppressWarnings("unchecked")
 	public static List<PhotoRecord> list() {
-		Path root = FabricLoader.getInstance().getGameDir().resolve(BirdWatchConfig.photoDirectory);
+		Path root = com.birdwatch.client.photo.PhotoStorage.photosRoot();
 		if (!Files.isDirectory(root)) {
 			return List.of();
 		}

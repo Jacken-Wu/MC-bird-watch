@@ -46,7 +46,7 @@ public class PhotoPreviewScreen extends Screen {
 			return;
 		}
 		double[] crop = parseCrop(tag.getString(PhotoPrintItem.KEY_CROP).orElse(""));
-		Path png = BirdWatchConfig.photosRoot().resolve(photo);
+		Path png = com.birdwatch.client.photo.PhotoStorage.resolvePhoto(photo);
 		try (InputStream in = Files.newInputStream(png)) {
 			NativeImage source = NativeImage.read(in);
 			int w = Math.max(1, (int) Math.round(source.getWidth() * crop[2]));

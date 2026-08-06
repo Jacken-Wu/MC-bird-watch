@@ -85,7 +85,7 @@ public final class PhotoSaver {
 
 	/** 归档目录:主体鸟 = 画面内得分最高者;无鸟 → 未收录/ */
 	private static Path archiveDir(CameraSession.PhotoData data) {
-		Path root = FabricLoader.getInstance().getGameDir().resolve(BirdWatchConfig.photoDirectory);
+		Path root = com.birdwatch.client.photo.PhotoStorage.photosRoot();
 		if (data.birds().isEmpty()) {
 			return root.resolve("未收录");
 		}

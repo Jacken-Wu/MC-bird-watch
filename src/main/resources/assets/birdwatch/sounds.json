@@ -1,22 +1,40 @@
 {
-	"heron_ambient": {
-		"subtitle": "subtitles.birdwatch.heron_ambient",
+	"little_egret_ambient": {
+		"subtitle": "subtitles.birdwatch.little_egret_ambient",
 		"sounds": [
-			{ "name": "minecraft:mob/parrot/idle1", "volume": 0.7 },
-			{ "name": "minecraft:mob/parrot/idle2", "volume": 0.7 },
-			{ "name": "minecraft:mob/parrot/idle3", "volume": 0.7 },
-			{ "name": "minecraft:mob/parrot/idle4", "volume": 0.7 },
-			{ "name": "minecraft:mob/parrot/idle5", "volume": 0.7 },
-			{ "name": "minecraft:mob/parrot/idle6", "volume": 0.7 }
+			{ "name": "birdwatch:little_egret/ambient1" },
+			{ "name": "birdwatch:little_egret/ambient2" },
+			{ "name": "birdwatch:little_egret/ambient3" }
 		]
 	},
-	"heron_scared": {
-		"subtitle": "subtitles.birdwatch.heron_scared",
+	"little_egret_scared": {
+		"subtitle": "subtitles.birdwatch.little_egret_scared",
 		"sounds": [
-			{ "name": "minecraft:mob/parrot/fly1", "volume": 0.9 },
-			{ "name": "minecraft:mob/parrot/fly2", "volume": 0.9 },
-			{ "name": "minecraft:mob/parrot/fly3", "volume": 0.9 },
-			{ "name": "minecraft:mob/parrot/fly4", "volume": 0.9 }
+			{ "name": "birdwatch:little_egret/scared1" },
+			{ "name": "birdwatch:little_egret/scared2" },
+			{ "name": "birdwatch:little_egret/scared3" }
+		]
+	},
+	"little_egret_hurt": {
+		"subtitle": "subtitles.birdwatch.little_egret_hurt",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/hurt1" },
+			{ "name": "birdwatch:little_egret/hurt2" }
+		]
+	},
+	"little_egret_death": {
+		"subtitle": "subtitles.birdwatch.little_egret_death",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/death1" },
+			{ "name": "birdwatch:little_egret/death2" }
+		]
+	},
+	"little_egret_flap": {
+		"subtitle": "subtitles.birdwatch.little_egret_flap",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/flap1" },
+			{ "name": "birdwatch:little_egret/flap2" },
+			{ "name": "birdwatch:little_egret/flap3" }
 		]
 	}
 }
