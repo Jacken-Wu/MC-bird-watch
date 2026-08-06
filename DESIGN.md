@@ -94,7 +94,7 @@
 - [ ] 建模指导:Claude 产出麻雀/山雀部位尺寸表(头部/躯干/翅膀/尾羽/喙/腿,长宽高与枢轴位置),用户按 Blockbench 绘制 geo 模型
 - [ ] 动画:复用小白鹭 7 个行为动画的命名与状态映射(idle/walk/forage/alert/fly_takeoff/fly/sleep),用户按模板制作
 - [ ] 贴图:用户手绘 32×32(或 64×64);完成后把 SpeciesRegistry 中麻雀/山雀的 assetPrefix 从 "little_egret" 改为各自 id
-- [ ] 音效:Claude 用 tools/gen_sounds.py 流程生成麻雀(叽喳)与山雀(清脆哨音)叫声,替换 sounds.json 中指向白鹭的占位
+- [x] 音效:Claude 用 tools/gen_sounds.py 流程生成麻雀(叽喳)与山雀(清脆哨音)叫声,替换 sounds.json 中指向白鹭的占位(2026-08-07 完成)
 
 ### 生物行为遗留问题(用户实测发现,下轮修)
 - [ ] 非水鸟水域行为:深坑/峡谷底干燥平台的鸟被困水域环境(已加探索飞行兜底,待实测验证);必要时给非水鸟加「水域环境主动离开」判定

@@ -9,10 +9,9 @@ import net.minecraft.sounds.SoundEvent;
 /**
  * 音效注册入口。
  *
- * M2b 起使用本地程序化合成的白鹭音效
- * (assets/birdwatch/sounds/little_egret/*.ogg,由 tools/gen_sounds.py 生成)。
- * 麻雀/山雀(M4a 验证物种)音效事件已注册,资源暂指向白鹭 ogg(sounds.json 占位),
- * 真实录音采集在 M6 替换。
+ * 全部音效为本地程序化合成(assets/birdwatch/sounds/<物种>/*.ogg,
+ * 由 tools/gen_sounds.py 生成):白鹭粗哑嘎叫、麻雀叽喳、山雀清脆哨音。
+ * M6 真实录音采集后直接替换同名 ogg 即可,代码无需改动。
  */
 public final class ModSounds {
 	/** 小白鹭鸣叫(听声辨位音源) */
