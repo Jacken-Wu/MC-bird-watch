@@ -2,7 +2,7 @@
   "parent": "birdwatch:little_egret_excellent",
   "display": {
     "icon": {
-      "id": "birdwatch:photo_print"
+      "id": "birdwatch:camera"
     },
     "title": {
       "translate": "advancements.birdwatch.little_egret_perfect.title"

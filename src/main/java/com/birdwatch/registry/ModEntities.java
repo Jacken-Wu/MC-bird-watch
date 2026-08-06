@@ -1,7 +1,9 @@
 package com.birdwatch.registry;
 
 import com.birdwatch.BirdWatchMod;
-import com.birdwatch.entity.LittleEgretEntity;
+import com.birdwatch.bird.BirdSpecies;
+import com.birdwatch.bird.SpeciesRegistry;
+import com.birdwatch.entity.BirdEntity;
 import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
 import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
@@ -15,52 +17,77 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.Level;
+
+import java.lang.reflect.Constructor;
 
 /**
- * 实体注册入口(M2b:小白鹭,ID 与物种命名统一 little_egret)。
+ * 实体注册入口(M4a:数据驱动重构 —— 遍历 SpeciesRegistry 统一注册)。
+ *
+ * 每个物种注册四件事:EntityType(反射工厂,构造器约定 (EntityType, Level))、
+ * 属性(26.2 必须以 LivingEntity.createLivingAttributes() 为基础)、
+ * 物种索引(SpeciesRegistry.indexType)、自然刷新(群系/权重/组大小)。
  *
  * 26.2 官方映射:EntityType.Builder.build() 需要 ResourceKey(与 Item setId 同理)。
  */
 public final class ModEntities {
-	/** 小白鹭 —— 湿地涉禽,河边浅滩觅食 */
-	public static final EntityType<LittleEgretEntity> LITTLE_EGRET = EntityType.Builder.of(LittleEgretEntity::new, MobCategory.CREATURE)
-		.sized(0.5f, 0.9f)
-		.clientTrackingRange(10)
-		.build(ResourceKey.create(Registries.ENTITY_TYPE, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "little_egret")));
-
 	public static void registerAll() {
-		Registry.register(BuiltInRegistries.ENTITY_TYPE, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "little_egret"), LITTLE_EGRET);
-
-		FabricDefaultAttributeRegistry.register(LITTLE_EGRET, createLittleEgretAttributes());
-		// 自检:属性注册必须生效,否则 summon 时 Mob.finalizeSpawn 会 NPE
-		if (!net.minecraft.world.entity.ai.attributes.DefaultAttributes.hasSupplier(LITTLE_EGRET)) {
-			BirdWatchMod.LOGGER.error("[BirdWatch] 小白鹭属性注册失败:DefaultAttributes 无 LITTLE_EGRET 条目!");
-		} else {
-			BirdWatchMod.LOGGER.info("[BirdWatch] 小白鹭属性注册自检通过");
+		for (BirdSpecies species : SpeciesRegistry.all()) {
+			registerSpecies(species);
 		}
-		registerSpawns();
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <T extends BirdEntity> void registerSpecies(BirdSpecies species) {
+		Class<T> clazz = (Class<T>) species.entityClass();
+		Identifier id = Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, species.id());
+		// 反射工厂:物种实体类构造器统一为 (EntityType, Level)
+		// 类别用 AMBIENT(独立容量池):CREATURE 与鸡猪牛羊共享每区块 10 只上限,
+		// 动物多时鸟无名额刷不出(实测踩坑);AMBIENT 池只装鸟,蝙蝠稀疏只因权重低
+		EntityType<T> type = EntityType.Builder.of((EntityType.EntityFactory<T>) (entityType, level) -> {
+			try {
+				Constructor<T> ctor = clazz.getDeclaredConstructor(EntityType.class, Level.class);
+				return ctor.newInstance(entityType, level);
+			} catch (ReflectiveOperationException e) {
+				throw new RuntimeException("无法创建实体 " + species.id(), e);
+			}
+		}, MobCategory.AMBIENT)
+			.sized(species.width(), species.height())
+			.clientTrackingRange(10)
+			.build(ResourceKey.create(Registries.ENTITY_TYPE, id));
+
+		Registry.register(BuiltInRegistries.ENTITY_TYPE, id, type);
+		SpeciesRegistry.indexType(type, species);
+		FabricDefaultAttributeRegistry.register(type, createAttributes(species));
+		// 自检:属性注册必须生效,否则 summon 时 Mob.finalizeSpawn 会 NPE
+		if (!net.minecraft.world.entity.ai.attributes.DefaultAttributes.hasSupplier(type)) {
+			BirdWatchMod.LOGGER.error("[BirdWatch] {} 属性注册失败:DefaultAttributes 无对应条目!", species.id());
+		} else {
+			BirdWatchMod.LOGGER.info("[BirdWatch] {} 注册完成(属性自检通过)", species.id());
+		}
+		registerSpawns(species, type);
 	}
 
 	/**
 	 * 以原版活体实体标准属性集为基础(26 个属性,含 26.2 的 waypoint/step_height 等),
-	 * 再覆盖小白鹭个性化值 —— 属性集与版本自动同步,避免手抄遗漏导致
+	 * 再覆盖物种个性化值 —— 属性集与版本自动同步,避免手抄遗漏导致
 	 * "Can't find attribute xxx" 崩溃(waypoint_transmit_range / step_height 踩坑记录)。
 	 */
-	private static AttributeSupplier createLittleEgretAttributes() {
+	private static AttributeSupplier createAttributes(BirdSpecies species) {
 		return LivingEntity.createLivingAttributes()
-			.add(Attributes.MAX_HEALTH, 12.0)
-			.add(Attributes.MOVEMENT_SPEED, 0.25)
-			.add(Attributes.FOLLOW_RANGE, 24.0)
-			.add(Attributes.FLYING_SPEED, 0.4)
+			.add(Attributes.MAX_HEALTH, species.maxHealth())
+			.add(Attributes.MOVEMENT_SPEED, species.movementSpeed())
+			.add(Attributes.FOLLOW_RANGE, species.followRange())
+			.add(Attributes.FLYING_SPEED, species.flyingSpeed())
 			.build();
 	}
 
-	/** 自然刷新:湿地/河流/海滩浅滩(白鹭刷河边浅滩) */
-	private static void registerSpawns() {
+	/** 自然刷新:群系 + 权重 + 组大小(权重越高越常见;数据见物种记录;类别 AMBIENT 独立容量) */
+	private static <T extends BirdEntity> void registerSpawns(BirdSpecies species, EntityType<T> type) {
 		BiomeModifications.addSpawn(
-			BiomeSelectors.includeByKey(Biomes.SWAMP, Biomes.MANGROVE_SWAMP, Biomes.RIVER, Biomes.BEACH),
-			MobCategory.CREATURE, LITTLE_EGRET, 12, 1, 3);
+			BiomeSelectors.includeByKey(species.spawnBiomes()),
+			MobCategory.AMBIENT, type,
+			species.spawnWeight(), species.spawnMinGroup(), species.spawnMaxGroup());
 	}
 
 	private ModEntities() {

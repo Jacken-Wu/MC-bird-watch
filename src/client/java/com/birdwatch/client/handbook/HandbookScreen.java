@@ -1,6 +1,7 @@
 package com.birdwatch.client.handbook;
 
 import com.birdwatch.BirdWatchMod;
+import com.birdwatch.bird.BirdSpecies;
 import com.birdwatch.bird.SpeciesRegistry;
 import com.birdwatch.client.PhotoIndex;
 import com.birdwatch.item.PhotoPrintItem;
@@ -44,7 +45,11 @@ public class HandbookScreen extends Screen {
 	/** 已注册的照片纹理及其像素尺寸 */
 	private record PhotoTex(Identifier id, int w, int h) {
 	}
-	private final String speciesId;
+	/** 物种列表(页序 = SpeciesRegistry.all() 注册序)与当前页 */
+	private final List<BirdSpecies> speciesList;
+	private int pageIndex;
+	/** 搜索关键字(空 = 显示全部;实时过滤 id/中文名/学名) */
+	private String searchQuery = "";
 	private Button closeButton;
 	private Button prevButton;
 	private Button nextButton;
@@ -59,8 +64,51 @@ public class HandbookScreen extends Screen {
 
 	public HandbookScreen() {
 		super(Component.translatable("screen.birdwatch.handbook"));
-		// M2a 单物种;M4 遍历 SpeciesRegistry 生成条目列表
-		this.speciesId = SpeciesRegistry.LITTLE_EGRET_ID;
+		// M4a:遍历 SpeciesRegistry 生成条目列表,翻页切换
+		this.speciesList = SpeciesRegistry.all();
+		this.pageIndex = 0;
+	}
+
+	/** 当前可见物种(按搜索过滤;空查询 = 全部);页序 = 注册序 */
+	private List<BirdSpecies> visibleSpecies() {
+		if (searchQuery.isBlank()) {
+			return speciesList;
+		}
+		String q = searchQuery.trim().toLowerCase();
+		return speciesList.stream().filter(s -> {
+			if (s.id().toLowerCase().contains(q)) {
+				return true;
+			}
+			// 中文名/学名按当前语言匹配
+			for (String field : new String[]{"name", "scientific"}) {
+				if (Component.translatable("handbook.birdwatch." + s.id() + "." + field)
+					.getString().toLowerCase().contains(q)) {
+					return true;
+				}
+			}
+			return false;
+		}).toList();
+	}
+
+	/** 当前页物种 id */
+	private String speciesId() {
+		return visibleSpecies().get(pageIndex).id();
+	}
+
+	/** 当前页物种 */
+	private BirdSpecies species() {
+		return visibleSpecies().get(pageIndex);
+	}
+
+	/** 图鉴条目文案 key:handbook.birdwatch.<物种>.<字段> */
+	private String speciesKey(String field) {
+		return "handbook.birdwatch." + speciesId() + "." + field;
+	}
+
+	/** 翻页按钮可用态(首尾页对应按钮禁用);点击翻页后必须调用,否则状态滞后 */
+	private void refreshPaging() {
+		prevButton.active = pageIndex > 0;
+		nextButton.active = pageIndex < visibleSpecies().size() - 1;
 	}
 
 	@Override
@@ -70,23 +118,39 @@ public class HandbookScreen extends Screen {
 		// 底部一行工具条(紧凑):上一页 | 下一页 | 关闭 | 搜索框 | 搜索按钮
 		int y = this.height - 28;
 		prevButton = Button.builder(Component.translatable("gui.birdwatch.prev_page"), b -> {
+			if (pageIndex > 0) {
+				pageIndex--;
+				rightScroll = 0;
+				refreshPaging();
+			}
 		}).bounds(this.width / 2 - 190, y, 60, 20).build();
 		nextButton = Button.builder(Component.translatable("gui.birdwatch.next_page"), b -> {
+			if (pageIndex < speciesList.size() - 1) {
+				pageIndex++;
+				rightScroll = 0;
+				refreshPaging();
+			}
 		}).bounds(this.width / 2 - 122, y, 60, 20).build();
 		closeButton = Button.builder(Component.translatable("gui.birdwatch.close"), b -> this.onClose())
 			.bounds(this.width / 2 - 50, y, 100, 20).build();
 		int sw = Math.min(180, this.width / 2 - 130);
 		searchBox = new EditBox(Minecraft.getInstance().font, this.width / 2 + 60, y + 1, sw, 18,
 			Component.translatable("screen.birdwatch.handbook.search_hint"));
+		// 实时过滤:id / 中文名 / 学名;过滤后回到第一页
+		searchBox.setResponder(text -> {
+			searchQuery = text;
+			pageIndex = 0;
+			rightScroll = 0;
+			refreshPaging();
+		});
 		searchButton = Button.builder(Component.translatable("screen.birdwatch.handbook.search"),
 			b -> {
 			}).bounds(this.width / 2 + 64 + sw, y, 50, 20).build();
-		// M4 启用:翻页/搜索当前禁用(占位)
-		prevButton.active = false;
-		nextButton.active = false;
-		searchButton.active = false;
+		// 翻页 M4a 启用(页序 = 注册序);搜索 M4a 启用(实时过滤)
+		refreshPaging();
+		searchButton.active = true;
 		searchBox.setFocused(false);
-		searchBox.active = false;
+		searchBox.active = true;
 		this.addRenderableWidget(prevButton);
 		this.addRenderableWidget(nextButton);
 		this.addRenderableWidget(closeButton);
@@ -109,7 +173,7 @@ public class HandbookScreen extends Screen {
 		int max = 0;
 		for (PhotoIndex.PhotoRecord r : PhotoIndex.list()) {
 			for (Map<String, Object> bird : birdsOf(r)) {
-				if (speciesId.equals(bird.get("species"))) {
+				if (speciesId().equals(bird.get("species"))) {
 					Object score = bird.get("score");
 					if (score instanceof Number n) {
 						max = Math.max(max, n.intValue());
@@ -190,7 +254,19 @@ public class HandbookScreen extends Screen {
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
 		Minecraft mc = Minecraft.getInstance();
-		boolean unlocked = HandbookProgress.isUnlocked(speciesId);
+		// 搜索无结果:绘制空态后直接结束(后续渲染依赖当前物种,必须守卫)
+		if (visibleSpecies().isEmpty()) {
+			int pl = panelLeft();
+			int colW = columnWidth();
+			graphics.fill(pl, PANEL_TOP, pl + colW, panelBottom(), 0x99000000);
+			graphics.fill(rightX(), PANEL_TOP, rightX() + colW, panelBottom(), 0x99000000);
+			Component empty = Component.translatable("screen.birdwatch.handbook.no_result");
+			graphics.text(mc.font, empty, this.width / 2 - mc.font.width(empty) / 2,
+				this.height / 2 - 6, 0xFF666666);
+			super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+			return;
+		}
+		boolean unlocked = HandbookProgress.isUnlocked(speciesId());
 		int pl = panelLeft();
 		int rx = rightX();
 		int colW = columnWidth();
@@ -201,8 +277,9 @@ public class HandbookScreen extends Screen {
 		graphics.fill(pl, PANEL_TOP, pl + colW, panelBottom(), 0x99000000);
 		graphics.fill(rx, PANEL_TOP, rx + colW, panelBottom(), 0x99000000);
 
-		// 标题
-		Component title = this.getTitle();
+		// 标题(带页码,如「观鸟图鉴 1/3」;搜索时页码基于过滤结果)
+		Component title = this.getTitle().copy()
+			.append(" " + (pageIndex + 1) + "/" + visibleSpecies().size());
 		graphics.text(mc.font, title, this.width / 2 - mc.font.width(title) / 2, 8, 0xFFFFFFFF);
 
 		// 屏幕内提示(贴入成功/失败),显示 3 秒
@@ -214,14 +291,14 @@ public class HandbookScreen extends Screen {
 		}
 
 		// ---- 左栏:物种名 + 预览区(= 贴入槽,点击大图贴入印刷照片) ----
-		graphics.text(mc.font, Component.translatable("handbook.birdwatch.little_egret.name"),
+		graphics.text(mc.font, Component.translatable(speciesKey("name")),
 			pl + 10, PANEL_TOP + 6, 0xFFFFFFFF);
 		int[] pv = previewRect();
 		int px = pv[0], py = pv[1];
 		boolean hasPhoto = false;
 		if (unlocked) {
-			String slot = HandbookProgress.slotPhoto(speciesId);
-			PhotoTex tex = slot != null ? textureForPhoto(slot, HandbookProgress.slotCrop(speciesId)) : null;
+			String slot = HandbookProgress.slotPhoto(speciesId());
+			PhotoTex tex = slot != null ? textureForPhoto(slot, HandbookProgress.slotCrop(speciesId())) : null;
 			if (tex != null) {
 				// 按照片实际比例显示(letterbox 居中,不拉伸变形)
 				double ratio = Math.min((double) pW / tex.w(), (double) pH / tex.h());
@@ -279,7 +356,7 @@ public class HandbookScreen extends Screen {
 	/** 右栏文本行(预计算;标题行特殊颜色) */
 	private List<String> buildRightLines(Minecraft mc, boolean unlocked, int textW) {
 		List<String> lines = new ArrayList<>();
-		String sci = unlocked ? Component.translatable("handbook.birdwatch.little_egret.scientific").getString() : "???";
+		String sci = unlocked ? Component.translatable(speciesKey("scientific")).getString() : "???";
 		lines.add("[学名] " + sci);
 		int score = maxScore();
 		String tierKey = score >= 95 ? "handbook.birdwatch.tier.perfect"
@@ -288,10 +365,10 @@ public class HandbookScreen extends Screen {
 		lines.add("[评分] " + score + "  " + Component.translatable(tierKey).getString());
 		lines.add("");
 		lines.add("[习性]");
-		lines.addAll(wrapText(mc, Component.translatable("handbook.birdwatch.little_egret.habitat").getString(), textW));
+		lines.addAll(wrapText(mc, Component.translatable(speciesKey("habitat")).getString(), textW));
 		lines.add("");
 		lines.add("[拍摄建议]");
-		lines.addAll(wrapText(mc, Component.translatable("handbook.birdwatch.little_egret.tip").getString(), textW));
+		lines.addAll(wrapText(mc, Component.translatable(speciesKey("tip")).getString(), textW));
 		return lines;
 	}
 
@@ -390,7 +467,7 @@ public class HandbookScreen extends Screen {
 				continue;
 			}
 			var tag = data.copyTag();
-			if (!speciesId.equals(tag.getString(PhotoPrintItem.KEY_SPECIES).orElse(""))) {
+			if (!speciesId().equals(tag.getString(PhotoPrintItem.KEY_SPECIES).orElse(""))) {
 				continue;
 			}
 			if (tag.getInt(PhotoPrintItem.KEY_SCORE).orElse(0) < 60) {
@@ -400,7 +477,7 @@ public class HandbookScreen extends Screen {
 		}
 		if (candidates.isEmpty()) {
 			showNotice(Component.translatable("screen.birdwatch.handbook.no_print",
-				Component.translatable("handbook.birdwatch.little_egret.name")).getString());
+				Component.translatable(speciesKey("name"))).getString());
 			return;
 		}
 		if (candidates.size() == 1) {
@@ -408,7 +485,7 @@ public class HandbookScreen extends Screen {
 			return;
 		}
 		// 多张候选:打开选择界面
-		Minecraft.getInstance().setScreenAndShow(new PhotoSelectScreen(candidates, speciesId, this));
+		Minecraft.getInstance().setScreenAndShow(new PhotoSelectScreen(candidates, speciesId(), this));
 	}
 
 	/** 贴入指定印刷照片:旧照片返还 + 解锁 + 成就授奖(供本界面与选择界面调用) */
@@ -435,13 +512,13 @@ public class HandbookScreen extends Screen {
 		// 返回图鉴界面并提示
 		if (returnScreen instanceof HandbookScreen handbook) {
 			handbook.showNotice(Component.translatable("screen.birdwatch.handbook.unlocked_msg",
-				Component.translatable("handbook.birdwatch.little_egret.name")).getString());
+				Component.translatable("handbook.birdwatch." + speciesId + ".name")).getString());
 		}
 	}
 
 	/** 直接贴入(单张候选) */
 	private void applyPrint(ItemStack print) {
-		applyPrint(print, speciesId, this);
+		applyPrint(print, speciesId(), this);
 		init();
 	}
 
@@ -501,7 +578,7 @@ public class HandbookScreen extends Screen {
 	// ------------------------------------------------------------------
 
 	private Identifier speciesTexture() {
-		return Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "textures/entity/little_egret.png");
+		return species().textureId();
 	}
 
 	/** 照片预览:读照片 PNG,按印刷裁剪矩形裁切后注册纹理(缓存 key 含裁剪);返回纹理与尺寸 */

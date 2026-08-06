@@ -36,5 +36,81 @@
 			{ "name": "birdwatch:little_egret/flap2" },
 			{ "name": "birdwatch:little_egret/flap3" }
 		]
+	},
+	"sparrow_ambient": {
+		"subtitle": "subtitles.birdwatch.sparrow_ambient",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/ambient1" },
+			{ "name": "birdwatch:little_egret/ambient2" },
+			{ "name": "birdwatch:little_egret/ambient3" }
+		]
+	},
+	"sparrow_scared": {
+		"subtitle": "subtitles.birdwatch.sparrow_scared",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/scared1" },
+			{ "name": "birdwatch:little_egret/scared2" },
+			{ "name": "birdwatch:little_egret/scared3" }
+		]
+	},
+	"sparrow_hurt": {
+		"subtitle": "subtitles.birdwatch.sparrow_hurt",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/hurt1" },
+			{ "name": "birdwatch:little_egret/hurt2" }
+		]
+	},
+	"sparrow_death": {
+		"subtitle": "subtitles.birdwatch.sparrow_death",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/death1" },
+			{ "name": "birdwatch:little_egret/death2" }
+		]
+	},
+	"sparrow_flap": {
+		"subtitle": "subtitles.birdwatch.sparrow_flap",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/flap1" },
+			{ "name": "birdwatch:little_egret/flap2" },
+			{ "name": "birdwatch:little_egret/flap3" }
+		]
+	},
+	"tit_ambient": {
+		"subtitle": "subtitles.birdwatch.tit_ambient",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/ambient1" },
+			{ "name": "birdwatch:little_egret/ambient2" },
+			{ "name": "birdwatch:little_egret/ambient3" }
+		]
+	},
+	"tit_scared": {
+		"subtitle": "subtitles.birdwatch.tit_scared",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/scared1" },
+			{ "name": "birdwatch:little_egret/scared2" },
+			{ "name": "birdwatch:little_egret/scared3" }
+		]
+	},
+	"tit_hurt": {
+		"subtitle": "subtitles.birdwatch.tit_hurt",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/hurt1" },
+			{ "name": "birdwatch:little_egret/hurt2" }
+		]
+	},
+	"tit_death": {
+		"subtitle": "subtitles.birdwatch.tit_death",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/death1" },
+			{ "name": "birdwatch:little_egret/death2" }
+		]
+	},
+	"tit_flap": {
+		"subtitle": "subtitles.birdwatch.tit_flap",
+		"sounds": [
+			{ "name": "birdwatch:little_egret/flap1" },
+			{ "name": "birdwatch:little_egret/flap2" },
+			{ "name": "birdwatch:little_egret/flap3" }
+		]
 	}
 }

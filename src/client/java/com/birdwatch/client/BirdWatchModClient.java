@@ -1,8 +1,9 @@
 package com.birdwatch.client;
 
 import com.birdwatch.BirdWatchMod;
-import com.birdwatch.client.entity.LittleEgretGeoRenderer;
-import com.birdwatch.registry.ModEntities;
+import com.birdwatch.bird.BirdSpecies;
+import com.birdwatch.bird.SpeciesRegistry;
+import com.birdwatch.client.entity.BirdGeoRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
@@ -40,9 +41,12 @@ public class BirdWatchModClient implements ClientModInitializer {
 		registerPhotoPrintSpecialModel();
 	}
 
-	/** 小白鹭 GeckoLib 渲染器注册(M2b) */
+	/** 全物种 GeckoLib 渲染器注册(M4a 泛化:共用 BirdGeoRenderer,模型按物种取资源) */
 	private static void registerEntityRenderers() {
-		EntityRendererRegistry.register(ModEntities.LITTLE_EGRET, LittleEgretGeoRenderer::new);
+		for (BirdSpecies species : SpeciesRegistry.all()) {
+			EntityRendererRegistry.register(SpeciesRegistry.entityType(species),
+				ctx -> new BirdGeoRenderer(ctx, species));
+		}
 	}
 
 	/** 印刷照片特殊模型注册(反射:原版 ID_MAPPER 为私有,无公开 API) */

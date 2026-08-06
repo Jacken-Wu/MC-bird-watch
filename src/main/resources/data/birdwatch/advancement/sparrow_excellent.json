@@ -1,14 +1,14 @@
 {
-  "parent": "birdwatch:photo_first",
+  "parent": "birdwatch:sparrow_unlock",
   "display": {
     "icon": {
       "id": "birdwatch:camera"
     },
     "title": {
-      "translate": "advancements.birdwatch.little_egret_unlock.title"
+      "translate": "advancements.birdwatch.sparrow_excellent.title"
     },
     "description": {
-      "translate": "advancements.birdwatch.little_egret_unlock.description"
+      "translate": "advancements.birdwatch.sparrow_excellent.description"
     },
     "frame": "task",
     "show_toast": true,
@@ -19,8 +19,8 @@
     "photo_rated": {
       "trigger": "birdwatch:photo_rated",
       "conditions": {
-        "species": "little_egret",
-        "minScore": 60
+        "species": "sparrow",
+        "minScore": 80
       }
     }
   }
