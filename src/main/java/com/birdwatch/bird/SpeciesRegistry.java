@@ -58,7 +58,7 @@ public final class SpeciesRegistry {
 			Biomes.FOREST, Biomes.BIRCH_FOREST, Biomes.SAVANNA),
 		40, 1, 4);
 
-	/** 大山雀(Parus major)—— 森林树冠活跃小鸟(M4a 验证物种,美术占位) */
+	/** 大山雀(Parus major)—— 森林树冠活跃小鸟 */
 	public static final BirdSpecies TIT = new BirdSpecies(
 		"tit", "山雀", TitEntity.class, BirdSpecies.Habitat.FOREST,
 		true, 0.25f, 0.3f,
@@ -69,7 +69,7 @@ public final class SpeciesRegistry {
 		false,
 		ModSounds.TIT_AMBIENT, ModSounds.TIT_SCARED,
 		ModSounds.TIT_HURT, ModSounds.TIT_DEATH, ModSounds.TIT_FLAP,
-		"little_egret", // 美术占位:复用白鹭资源,用户出稿后改 "tit"
+		"tit",
 		List.of(Biomes.FOREST, Biomes.BIRCH_FOREST, Biomes.FLOWER_FOREST,
 			Biomes.DARK_FOREST, Biomes.CHERRY_GROVE),
 		30, 1, 3);
