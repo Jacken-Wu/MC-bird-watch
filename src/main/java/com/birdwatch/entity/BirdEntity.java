@@ -89,6 +89,13 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 	private static final float PATHFINDER_NODE_MULTIPLIER = 4.0F;
 	/** GOTO 到达判定(水平距离,格) */
 	private static final double GOTO_ARRIVE_DISTANCE = 3.0;
+	/**
+	 * 飞行导航速度倍率(全速 = 1.0)。
+	 * 注意:MoveControl 实际速度 = moveTo 参数 × 对应属性(FLYING_SPEED),
+	 * 物种飞行差异已由 ModEntities 注册的 FLYING_SPEED 属性承担,
+	 * 此处必须保持 1.0 —— 若再把物种 flyingSpeed 传进来会双重相乘(实测白鹭飞不动)。
+	 */
+	private static final double FLIGHT_NAV_SPEED = 1.0;
 	/** 地面行走导航速度倍率(移动属性值 × 此倍率 = moveTo 速度参数,1.0=全速) */
 	private static final double GROUND_NAV_SPEED_MULTIPLIER = 2.0;
 	/** 非湿地觅食/闲逛的随机点采样半径(格) */
@@ -583,7 +590,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 	/**
 	 * 飞行推进(服务端 tick):由 FlyingPathNavigation 3D 寻路驱动
 	 * (自动绕障/翻越地形),GOTO 飞向目标、CRUISE 定时换随机目标;时长结束自然落地。
-	 * 速度 = 物种 flyingSpeed(0.35 白鹭慢 / 0.6 麻雀快,SpeciesRegistry 调)。
+	 * 实际速度 = FLIGHT_NAV_SPEED × FLYING_SPEED 属性(SpeciesRegistry 调,白鹭 0.35 慢 / 麻雀 0.6 快)。
 	 */
 	private void tickFlight() {
 		if (--flightTicksRemaining <= 0) {
@@ -609,7 +616,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 							away = new Vec3(1, 0, 0);
 						}
 						Vec3 target = position().add(away.scale(30.0));
-						getNavigation().moveTo(target.x, groundBelow() + CRUISE_ALTITUDE, target.z, species().flyingSpeed());
+						getNavigation().moveTo(target.x, groundBelow() + CRUISE_ALTITUDE, target.z, FLIGHT_NAV_SPEED);
 					}
 				}
 				return;
@@ -637,7 +644,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 				}
 			}
 			// 先 moveTo 再判结果:换新导航后首 tick 无路径属正常,不能判失败落地
-			if (!getNavigation().moveTo(flyTarget.x, flyTarget.y, flyTarget.z, species().flyingSpeed())) {
+			if (!getNavigation().moveTo(flyTarget.x, flyTarget.y, flyTarget.z, FLIGHT_NAV_SPEED)) {
 				// 首次失败:目标抬升 16 格重试(森林/峡谷地形 A* 失败多为目标被树冠/山脊包围,
 				// 抬高后越障可达;否则原地落地可能落回水中,与自救形成死循环)
 				if (!gotoElevated) {
@@ -646,7 +653,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 						Math.max(groundAt(flyTarget.x, flyTarget.z) + 16.0, position().y + 16.0),
 						flyTarget.z);
 					BirdWatchMod.LOGGER.info("[Bird:{}] GOTO 寻路失败,抬升目标重试", species().id());
-					if (getNavigation().moveTo(flyTarget.x, flyTarget.y, flyTarget.z, species().flyingSpeed())) {
+					if (getNavigation().moveTo(flyTarget.x, flyTarget.y, flyTarget.z, FLIGHT_NAV_SPEED)) {
 						return;
 					}
 				}
@@ -664,7 +671,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 			double dist = 15.0 + getRandom().nextDouble() * 20.0;
 			Vec3 dir = Vec3.directionFromRotation(yaw, 0.0F);
 			Vec3 target = position().add(dir.scale(dist));
-			getNavigation().moveTo(target.x, groundAt(target.x, target.z) + CRUISE_ALTITUDE, target.z, species().flyingSpeed());
+			getNavigation().moveTo(target.x, groundAt(target.x, target.z) + CRUISE_ALTITUDE, target.z, FLIGHT_NAV_SPEED);
 		} else if (!getNavigation().isInProgress()) {
 			// 寻路失败时清除移动意图,防止原地旋转/跳跃
 			getNavigation().stop();
