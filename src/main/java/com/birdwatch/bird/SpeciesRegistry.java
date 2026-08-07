@@ -31,7 +31,7 @@ public final class SpeciesRegistry {
 	public static final BirdSpecies LITTLE_EGRET = new BirdSpecies(
 		"little_egret", "白鹭", LittleEgretEntity.class, BirdSpecies.Habitat.WETLAND,
 		true, 0.5f, 0.9f,
-		12.0, 0.25, 0.35, 24.0,
+		12.0, 0.25, 0.45, 24.0,
 		8.0, 4.0, 8.0, 12.0, 20.0,
 		80.0, 8.0,
 		0.3F, 0.8F, 40.0, 80.0,
@@ -47,7 +47,7 @@ public final class SpeciesRegistry {
 	public static final BirdSpecies SPARROW = new BirdSpecies(
 		"sparrow", "麻雀", SparrowEntity.class, BirdSpecies.Habitat.VILLAGE,
 		true, 0.25f, 0.35f,
-		4.0, 0.22, 0.6, 16.0,
+		4.0, 0.22, 0.65, 16.0,
 		6.0, 3.0, 5.0, 8.0, 14.0,
 		0.0, 0.0,
 		0.15F, 0.3F, 8.0, 20.0,
@@ -64,7 +64,7 @@ public final class SpeciesRegistry {
 	public static final BirdSpecies TIT = new BirdSpecies(
 		"tit", "山雀", TitEntity.class, BirdSpecies.Habitat.FOREST,
 		true, 0.25f, 0.3f,
-		4.0, 0.24, 0.55, 16.0,
+		4.0, 0.24, 0.6, 16.0,
 		7.0, 3.0, 6.0, 9.0, 16.0,
 		0.0, 0.0,
 		0.35F, 0.4F, 10.0, 25.0,

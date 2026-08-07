@@ -81,6 +81,8 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 	private static final double CRUISE_ALTITUDE = 8.0;
 	/** 受惊飞行落地判定:玩家距鸟超过该距离才算安全 */
 	private static final double SAFE_LANDING_DISTANCE = 24.0;
+	/** 受惊巡航逃离偏置距离:玩家在此范围内,巡航目标偏向远离玩家(受惊飞走倾向) */
+	private static final double ESCAPE_BIAS_DISTANCE = 48.0;
 	/** 玩家仍在附近时最多续飞次数(防无限飞行) */
 	private static final int MAX_FLIGHT_EXTENSIONS = 4;
 	/** 水搜索的竖直扫描范围(格,上下对称):覆盖高地/峡谷大高差 */
@@ -535,18 +537,27 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 
 	/** 玩家是否仍在附近(安全距离内) */
 	private boolean playerStillNear() {
+		return nearestPlayer(SAFE_LANDING_DISTANCE) != null;
+	}
+
+	/** 最近的非旁观/创造玩家;超过 maxDist(格)返回 null */
+	private Player nearestPlayer(double maxDist) {
 		if (!(level() instanceof ServerLevel serverLevel)) {
-			return false;
+			return null;
 		}
+		Player nearest = null;
+		double best = maxDist * maxDist;
 		for (Player player : serverLevel.players()) {
 			if (player.isSpectator() || player.isCreative()) {
 				continue;
 			}
-			if (distanceToSqr(player) < SAFE_LANDING_DISTANCE * SAFE_LANDING_DISTANCE) {
-				return true;
+			double d = distanceToSqr(player);
+			if (d < best) {
+				best = d;
+				nearest = player;
 			}
 		}
-		return false;
+		return nearest;
 	}
 
 	/** 移动控制切换:飞行用 FlyingMoveControl(3D + 自动无重力),地面用默认 */
@@ -600,24 +611,14 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 				flightExtensions++;
 				flightTicksRemaining = FLIGHT_MIN_TICKS + getRandom().nextInt(FLIGHT_MAX_TICKS - FLIGHT_MIN_TICKS);
 				turnCooldown = 10;
-				if (level() instanceof ServerLevel serverLevel) {
-					Player nearest = null;
-					double best = Double.MAX_VALUE;
-					for (Player p : serverLevel.players()) {
-						double d = distanceToSqr(p);
-						if (d < best) {
-							best = d;
-							nearest = p;
-						}
+				Player nearest = nearestPlayer(Double.MAX_VALUE);
+				if (nearest != null) {
+					Vec3 away = position().subtract(nearest.position()).multiply(1, 0, 1).normalize();
+					if (away.lengthSqr() < 0.001) {
+						away = new Vec3(1, 0, 0);
 					}
-					if (nearest != null) {
-						Vec3 away = position().subtract(nearest.position()).multiply(1, 0, 1).normalize();
-						if (away.lengthSqr() < 0.001) {
-							away = new Vec3(1, 0, 0);
-						}
-						Vec3 target = position().add(away.scale(30.0));
-						getNavigation().moveTo(target.x, groundBelow() + CRUISE_ALTITUDE, target.z, FLIGHT_NAV_SPEED);
-					}
+					Vec3 target = position().add(away.scale(30.0));
+					getNavigation().moveTo(target.x, groundBelow() + CRUISE_ALTITUDE, target.z, FLIGHT_NAV_SPEED);
 				}
 				return;
 			}
@@ -664,12 +665,26 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 			}
 			return;
 		}
-		// CRUISE:定时换随机巡航目标(目标处地面 +8 高度,保证可达),导航自动绕障
+		// CRUISE:定时换巡航目标(目标处地面 +8 高度,保证可达),导航自动绕障。
+		// 受惊飞走倾向:玩家在 48 格内时,目标偏向远离玩家方向(±60° 随机偏置,
+		// 避免呆板直线),让鸟持续逃离而非在玩家头顶打转;飞出范围恢复纯随机。
 		if (--turnCooldown <= 0) {
 			turnCooldown = TURN_MIN_TICKS + getRandom().nextInt(TURN_MAX_TICKS - TURN_MIN_TICKS);
-			float yaw = getYRot() + (getRandom().nextFloat() * 2.0F - 1.0F) * 120.0F;
 			double dist = 15.0 + getRandom().nextDouble() * 20.0;
-			Vec3 dir = Vec3.directionFromRotation(yaw, 0.0F);
+			Vec3 dir;
+			Player nearest = nearestPlayer(ESCAPE_BIAS_DISTANCE);
+			if (nearest != null) {
+				Vec3 away = position().subtract(nearest.position()).multiply(1, 0, 1).normalize();
+				if (away.lengthSqr() < 0.001) {
+					away = new Vec3(1, 0, 0);
+				}
+				float yaw = (float) Math.toDegrees(Math.atan2(-away.x, away.z))
+					+ (getRandom().nextFloat() * 2.0F - 1.0F) * 60.0F;
+				dir = Vec3.directionFromRotation(yaw, 0.0F);
+			} else {
+				float yaw = getYRot() + (getRandom().nextFloat() * 2.0F - 1.0F) * 120.0F;
+				dir = Vec3.directionFromRotation(yaw, 0.0F);
+			}
 			Vec3 target = position().add(dir.scale(dist));
 			getNavigation().moveTo(target.x, groundAt(target.x, target.z) + CRUISE_ALTITUDE, target.z, FLIGHT_NAV_SPEED);
 		} else if (!getNavigation().isInProgress()) {
