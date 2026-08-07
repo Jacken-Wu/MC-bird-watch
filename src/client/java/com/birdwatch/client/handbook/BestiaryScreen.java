@@ -184,7 +184,12 @@ public class BestiaryScreen extends Screen {
 				: "screen.birdwatch.bestiary.locked"),
 			40, 50, unlocked ? 0xFF55FF55 : 0xFF888888);
 		if (unlocked) {
-			Component desc = Component.translatable("bestiary.birdwatch." + entityId + ".desc");
+			// 有专属文案显示文案;无文案(自动收录的新实体)显示通用提示
+			String descKey = "bestiary.birdwatch." + entityId + ".desc";
+			Component desc = Component.translatable(descKey);
+			if (desc.getString().equals(descKey)) {
+				desc = Component.translatable("screen.birdwatch.bestiary.no_desc");
+			}
 			graphics.text(mc.font, desc, 40, 70, 0xFFCCCCCC);
 		} else {
 			Component hint = Component.translatable("screen.birdwatch.bestiary.locked_hint");

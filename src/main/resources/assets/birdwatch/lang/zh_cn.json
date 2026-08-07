@@ -158,5 +158,6 @@
 	"bestiary.birdwatch.zombie.desc": "夜晚游荡的不死生物,怕阳光。黎明时分它们会燃烧起来。",
 	"bestiary.birdwatch.skeleton.desc": "射箭精准的骷髅弓箭手,常在夜晚与洞穴中出现。骨头是它的盔甲。",
 	"bestiary.birdwatch.spider.desc": "八足的夜行猎手,能在墙壁间攀爬。黑暗处要留意它的眼睛。",
-	"bestiary.birdwatch.creeper.desc": "悄无声息靠近的绿色生物,靠近后会发生爆炸。保持距离拍摄!"
+	"bestiary.birdwatch.creeper.desc": "悄无声息靠近的绿色生物,靠近后会发生爆炸。保持距离拍摄!",
+	"screen.birdwatch.bestiary.no_desc": "已收录的生物,等待补充习性说明。"
 }

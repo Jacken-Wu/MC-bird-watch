@@ -35,8 +35,10 @@ public final class PhotoScorer {
 	private static final double W_NOISE = 0.15;
 	private static final double W_OCCLUSION = 0.10;
 
-	/** 检测半径(米) */
+	/** 检测半径(米,长焦基准:400mm 全距离) */
 	private static final double SCAN_RADIUS = 100.0;
+	/** 识别距离基准焦距(mm):此焦距获得 SCAN_RADIUS 全距离 */
+	private static final double SCAN_BASE_FOCAL = 400.0;
 	/** 全画幅弥散圆(mm),与 DoF 后处理一致 */
 	private static final double COC_THRESHOLD = 0.03;
 	/** 参考画面高度(像素,评分用归一化尺寸) */
@@ -62,7 +64,8 @@ public final class PhotoScorer {
 		}
 		Vec3 camPos = camera.position();
 
-		for (LivingEntity bird : inView(livingEntitiesInRange(mc, camera), camPos, forward, fovRad)) {
+		for (LivingEntity bird : inView(livingEntitiesInRange(mc, camera, SCAN_RADIUS),
+			camPos, forward, fovRad, SCAN_RADIUS)) {
 			Optional<String> species = SpeciesRegistry.speciesIdOf(bird);
 			if (species.isEmpty()) {
 				continue;
@@ -75,7 +78,9 @@ public final class PhotoScorer {
 
 	/**
 	 * 画面内的原版生物图鉴实体 id(M4b:拍照解锁,不评分)。
-	 * 与 scoreScene 共用视锥扫描;原版生物即使不在鸟物种清单也识别。
+	 * 识别距离按焦距限制:焦距越短识别距离越近 ——
+	 * 24mm 广角约 24m,50mm 约 35m,200mm 约 70m,400mm 约 100m。
+	 * 防止广角随便一拍解锁一大半图鉴(用户定稿)。
 	 */
 	public static List<String> detectBestiary(Minecraft mc, CameraSession session) {
 		List<String> result = new ArrayList<>();
@@ -90,18 +95,28 @@ public final class PhotoScorer {
 			return result;
 		}
 		Vec3 camPos = camera.position();
-		for (LivingEntity entity : inView(livingEntitiesInRange(mc, camera), camPos, forward, fovRad)) {
+		double radius = scanRadiusFor(session);
+		for (LivingEntity entity : inView(livingEntitiesInRange(mc, camera, radius), camPos, forward, fovRad, radius)) {
 			com.birdwatch.bird.BestiaryRegistry.idOf(entity.getType())
 				.ifPresent(result::add);
 		}
 		return result;
 	}
 
-	/** 相机 100 米内全部活体实体 */
-	private static List<LivingEntity> livingEntitiesInRange(Minecraft mc, Camera camera) {
-		AABB box = new AABB(camera.position().x - SCAN_RADIUS, camera.position().y - SCAN_RADIUS,
-			camera.position().z - SCAN_RADIUS, camera.position().x + SCAN_RADIUS,
-			camera.position().y + SCAN_RADIUS, camera.position().z + SCAN_RADIUS);
+	/** 按焦距的识别距离(米):sqrt(焦距/400mm) × 100,焦距越短距离越近 */
+	private static double scanRadiusFor(CameraSession session) {
+		int focal = session.getFocalLength();
+		if (focal <= 0) {
+			return SCAN_RADIUS;
+		}
+		return SCAN_RADIUS * Math.sqrt(focal / SCAN_BASE_FOCAL);
+	}
+
+	/** 相机半径内全部活体实体 */
+	private static List<LivingEntity> livingEntitiesInRange(Minecraft mc, Camera camera, double radius) {
+		AABB box = new AABB(camera.position().x - radius, camera.position().y - radius,
+			camera.position().z - radius, camera.position().x + radius,
+			camera.position().y + radius, camera.position().z + radius);
 		List<LivingEntity> result = new ArrayList<>();
 		for (Entity entity : mc.level.getEntities(camera.entity(), box, e -> true)) {
 			if (entity instanceof LivingEntity living) {
@@ -112,12 +127,13 @@ public final class PhotoScorer {
 	}
 
 	/** 视锥筛选:实体中心与视线夹角 < 纵向 FOV/2(加 0.05rad 边缘容差) */
-	private static List<LivingEntity> inView(List<LivingEntity> entities, Vec3 camPos, Vec3 forward, double fovRad) {
+	private static List<LivingEntity> inView(List<LivingEntity> entities, Vec3 camPos, Vec3 forward,
+		double fovRad, double radius) {
 		List<LivingEntity> result = new ArrayList<>();
 		for (LivingEntity e : entities) {
 			Vec3 to = e.getBoundingBox().getCenter().subtract(camPos);
 			double dist = to.length();
-			if (dist > SCAN_RADIUS || dist < 0.5) {
+			if (dist > radius || dist < 0.5) {
 				continue;
 			}
 			double angle = Math.acos(Mth.clamp(forward.dot(to.normalize()), -1, 1));

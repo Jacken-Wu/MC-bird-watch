@@ -158,5 +158,6 @@
 	"bestiary.birdwatch.zombie.desc": "Undead wanderers of the night that fear sunlight. They burn at dawn.",
 	"bestiary.birdwatch.skeleton.desc": "Precise archers of the night and caves. Bones are their armor.",
 	"bestiary.birdwatch.spider.desc": "Eight-legged night hunters that scale walls. Watch for their eyes in the dark.",
-	"bestiary.birdwatch.creeper.desc": "A green creature that creeps close, then explodes. Keep your distance!"
+	"bestiary.birdwatch.creeper.desc": "A green creature that creeps close, then explodes. Keep your distance!",
+	"screen.birdwatch.bestiary.no_desc": "A recorded creature. Habitat notes coming soon."
 }
