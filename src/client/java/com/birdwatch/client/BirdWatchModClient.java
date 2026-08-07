@@ -39,6 +39,24 @@ public class BirdWatchModClient implements ClientModInitializer {
 		hideVanillaHudInViewfinder();
 		registerEntityRenderers();
 		registerPhotoPrintSpecialModel();
+		registerPrintImageReceiver();
+	}
+
+	/** 印刷图下发接收:写客户端 print_cache(渲染缓存),供印刷物品/图鉴槽位渲染 */
+	private static void registerPrintImageReceiver() {
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
+			com.birdwatch.network.ModNetworking.PRINT_IMAGE,
+			(payload, context) -> {
+				context.client().execute(() -> {
+					try {
+						java.nio.file.Path cache = com.birdwatch.client.photo.PhotoStorage.printCacheRoot();
+						java.nio.file.Files.createDirectories(cache);
+						java.nio.file.Files.write(cache.resolve(payload.printId() + ".png"), payload.pngBytes());
+					} catch (java.io.IOException e) {
+						BirdWatchMod.LOGGER.error("[Print] 印刷图缓存写入失败 {}", payload.printId(), e);
+					}
+				});
+			});
 	}
 
 	/** 全物种 GeckoLib 渲染器注册(M4a 泛化:共用 BirdGeoRenderer,模型按物种取资源) */

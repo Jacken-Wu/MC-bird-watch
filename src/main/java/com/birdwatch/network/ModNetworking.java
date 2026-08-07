@@ -7,6 +7,7 @@ import com.birdwatch.config.BirdWatchConfig;
 import com.birdwatch.item.PhotoPrintItem;
 import com.birdwatch.menu.CameraLensMenuHandler;
 import com.birdwatch.registry.ModItems;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.component.DataComponents;
@@ -42,6 +43,12 @@ public final class ModNetworking {
 		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "handbook_unlock"));
 	public static final CustomPacketPayload.Type<PrintRequestPayload> PRINT_REQUEST =
 		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "print_request"));
+	/** 印刷图主动下发(图鉴贴入时给贴入玩家) */
+	public static final CustomPacketPayload.Type<PrintImagePayload> PRINT_IMAGE =
+		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "print_image"));
+	/** 印刷图按需请求(客户端渲染缓存缺失) */
+	public static final CustomPacketPayload.Type<PrintImageRequestPayload> PRINT_IMAGE_REQUEST =
+		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "print_image_request"));
 
 	public record OpenLensMenuPayload() implements CustomPacketPayload {
 		public static final StreamCodec<RegistryFriendlyByteBuf, OpenLensMenuPayload> CODEC =
@@ -68,8 +75,9 @@ public final class ModNetworking {
 	}
 
 	/**
-	 * 图鉴解锁授奖(species + 新照片路径 + 旧照片路径/裁剪)。
-	 * 服务端负责:旧照片返还物品、消耗新照片物品(客户端直接改背包会幽灵化)。
+	 * 图鉴解锁授奖(species + 新印刷图 printId + 旧 printId/裁剪)。
+	 * 服务端负责:消耗新照片物品并删除其印刷图文件、旧照片返还物品(引用转移,文件保留)、
+	 * 主动下发新印刷图字节给贴入玩家(槽位渲染立即可用)。客户端直接改背包会幽灵化。
 	 */
 	public record HandbookUnlockPayload(String species, String newPhoto, String oldPhoto, String oldCrop)
 		implements CustomPacketPayload {
@@ -87,21 +95,49 @@ public final class ModNetworking {
 		}
 	}
 
-	/** 印刷请求:服务端消耗 1 张纸并创建印刷照片物品入包 */
-	public record PrintRequestPayload(String photoPath, String species, int score, String tier, String crop)
-		implements CustomPacketPayload {
+	/** 印刷请求:上传缩放后的印刷图字节,服务端消耗 1 张纸、写印刷图文件并创建物品入包 */
+	public record PrintRequestPayload(byte[] pngBytes, String species, int score, String tier, String crop,
+		String birdsJson) implements CustomPacketPayload {
 		public static final StreamCodec<RegistryFriendlyByteBuf, PrintRequestPayload> CODEC =
 			StreamCodec.composite(
-				ByteBufCodecs.STRING_UTF8, PrintRequestPayload::photoPath,
+				ByteBufCodecs.BYTE_ARRAY, PrintRequestPayload::pngBytes,
 				ByteBufCodecs.STRING_UTF8, PrintRequestPayload::species,
 				ByteBufCodecs.VAR_INT, PrintRequestPayload::score,
 				ByteBufCodecs.STRING_UTF8, PrintRequestPayload::tier,
 				ByteBufCodecs.STRING_UTF8, PrintRequestPayload::crop,
+				ByteBufCodecs.STRING_UTF8, PrintRequestPayload::birdsJson,
 				PrintRequestPayload::new);
 
 		@Override
 		public Type<? extends CustomPacketPayload> type() {
 			return PRINT_REQUEST;
+		}
+	}
+
+	/** 印刷图下发:服务端 → 客户端(printId + PNG 字节,写客户端缓存) */
+	public record PrintImagePayload(String printId, byte[] pngBytes) implements CustomPacketPayload {
+		public static final StreamCodec<RegistryFriendlyByteBuf, PrintImagePayload> CODEC =
+			StreamCodec.composite(
+				ByteBufCodecs.STRING_UTF8, PrintImagePayload::printId,
+				ByteBufCodecs.BYTE_ARRAY, PrintImagePayload::pngBytes,
+				PrintImagePayload::new);
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return PRINT_IMAGE;
+		}
+	}
+
+	/** 印刷图请求:客户端渲染缓存缺失 → 按需拉取 */
+	public record PrintImageRequestPayload(String printId) implements CustomPacketPayload {
+		public static final StreamCodec<RegistryFriendlyByteBuf, PrintImageRequestPayload> CODEC =
+			StreamCodec.composite(
+				ByteBufCodecs.STRING_UTF8, PrintImageRequestPayload::printId,
+				PrintImageRequestPayload::new);
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return PRINT_IMAGE_REQUEST;
 		}
 	}
 
@@ -136,27 +172,20 @@ public final class ModNetworking {
 		return ItemStack.EMPTY;
 	}
 
-	/** 服务端:从照片元数据 JSON 读评分(旧照片返还用);读取失败返回 0 */
-	private static int readScoreFromJson(ServerPlayer player, String photoPath) {
-		try {
-			Path root = player.level().getServer().getWorldPath(LevelResource.ROOT)
-				.resolve(BirdWatchConfig.photoDirectory);
-			Path json = root.resolve(photoPath).resolveSibling(
-				java.nio.file.Path.of(photoPath).getFileName().toString().replace(".png", ".json"));
-			if (Files.exists(json)) {
-				var obj = com.google.gson.JsonParser.parseString(Files.readString(json))
-					.getAsJsonObject();
-				if (obj.has("birds") && obj.getAsJsonArray("birds").size() > 0) {
-					return obj.getAsJsonArray("birds").get(0).getAsJsonObject().get("score").getAsInt();
-				}
-			}
-		} catch (Exception e) {
-			BirdWatchMod.LOGGER.error("[BirdWatch] 读取照片元数据失败 {}", photoPath, e);
-		}
-		return 0;
+	/** 服务端:从印刷图元数据 JSON 读评分(旧照片返还用);读取失败返回 0 */
+	private static int readScoreFromJson(ServerPlayer player, String printId) {
+		return com.birdwatch.print.PrintStore.readScore(player.level().getServer(), printId);
 	}
 
 	public static void register() {
+		// 服务端 → 客户端:印刷图下发
+		PayloadTypeRegistry.clientboundPlay().register(PRINT_IMAGE, PrintImagePayload.CODEC);
+		// 印刷图周期 GC:每 10 分钟清理无引用且超龄的印刷图文件(防存档膨胀)
+		net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+			if (server.getTickCount() % 12000 == 0 && server.overworld() != null) {
+				com.birdwatch.print.PrintStore.gc(server.overworld());
+			}
+		});
 		PayloadTypeRegistry.serverboundPlay().register(OPEN_LENS_MENU, OpenLensMenuPayload.CODEC);
 		ServerPlayNetworking.registerGlobalReceiver(OPEN_LENS_MENU, (payload, context) -> {
 			ServerPlayer player = context.player();
@@ -178,7 +207,7 @@ public final class ModNetworking {
 		ServerPlayNetworking.registerGlobalReceiver(HANDBOOK_UNLOCK, (payload, context) -> {
 			ServerPlayer player = context.player();
 			context.server().execute(() -> {
-				// 旧照片返还(替换槽位时)
+				// 旧照片返还(替换槽位时):引用转移给返还物品,印刷图文件保留
 				if (!payload.oldPhoto().isEmpty() && !payload.oldPhoto().equals(payload.newPhoto())) {
 					ItemStack oldPrint = createPrintItem(payload.oldPhoto(),
 						payload.species(), readScoreFromJson(player, payload.oldPhoto()),
@@ -187,11 +216,16 @@ public final class ModNetworking {
 						player.drop(oldPrint, false);
 					}
 				}
-				// 消耗新照片物品(服务端,防幽灵)
+				// 消耗新照片物品(服务端,防幽灵)→ 物品销毁,印刷图文件删除
 				ItemStack newPrint = findPrint(player, payload.newPhoto());
 				if (!newPrint.isEmpty()) {
 					newPrint.shrink(1);
+					com.birdwatch.print.PrintStore.delete(context.server(), payload.newPhoto());
 				}
+				// 主动下发新印刷图给贴入玩家(槽位渲染立即可用,无需再请求)
+				com.birdwatch.print.PrintStore.readPng(context.server(), payload.newPhoto())
+					.ifPresent(bytes -> ServerPlayNetworking.send(player,
+						new PrintImagePayload(payload.newPhoto(), bytes)));
 				HandbookUnlockTrigger.INSTANCE.fire(player, payload.species());
 			});
 		});
@@ -213,13 +247,29 @@ public final class ModNetworking {
 				if (!consumed) {
 					return;
 				}
-				// 服务端创建印刷照片入包
-				ItemStack print = createPrintItem(payload.photoPath(), payload.species(),
+				// 服务端写印刷图文件并创建印刷照片物品入包(photo=printId)
+				String printId = com.birdwatch.print.PrintStore.save(context.server(),
+					payload.pngBytes(), payload.species(), payload.score(), payload.tier(), payload.birdsJson());
+				if (printId == null) {
+					BirdWatchMod.LOGGER.error("[Print] 印刷图写入失败,物品未创建");
+					return;
+				}
+				ItemStack print = createPrintItem(printId, payload.species(),
 					payload.score(), payload.tier(), payload.crop());
 				if (!player.getInventory().add(print)) {
 					player.drop(print, false);
 				}
 			});
+		});
+
+		// 印刷图按需请求:客户端渲染缓存缺失 → 服务端读文件回传
+		PayloadTypeRegistry.serverboundPlay().register(PRINT_IMAGE_REQUEST, PrintImageRequestPayload.CODEC);
+		ServerPlayNetworking.registerGlobalReceiver(PRINT_IMAGE_REQUEST, (payload, context) -> {
+			ServerPlayer player = context.player();
+			context.server().execute(() ->
+				com.birdwatch.print.PrintStore.readPng(context.server(), payload.printId())
+					.ifPresent(bytes -> ServerPlayNetworking.send(player,
+						new PrintImagePayload(payload.printId(), bytes))));
 		});
 	}
 

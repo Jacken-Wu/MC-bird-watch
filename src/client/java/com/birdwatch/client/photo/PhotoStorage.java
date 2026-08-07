@@ -3,24 +3,29 @@ package com.birdwatch.client.photo;
 import com.birdwatch.config.BirdWatchConfig;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.storage.LevelResource;
 
 import java.nio.file.Path;
 
 /**
- * 照片存储位置(客户端):照片按世界存档隔离。
- * 单人游戏 → &lt;世界存档&gt;/&lt;photoDirectory&gt;;多人/未进世界回退 .minecraft/&lt;photoDirectory&gt;。
- * 所有照片读写(拍照/印刷/相册/图鉴/展示框渲染)统一走本类,保证跨存档独立。
+ * 照片存储位置(客户端):照片恒存客户端本地,按世界标识分目录 ——
+ * 多人服务器上各玩家照片存在各自客户端,天然隔离。
+ * 世界标识:单机 = 世界存档名;多人 = 服务器 ip(净化);未进世界 = "local"。
+ * 印刷图不在此处:印刷图存服务端存档(PrintStore),客户端仅缓存到 print_cache/。
  */
 public final class PhotoStorage {
+	/** 照片根 = gameDir/birdwatch/photos/&lt;世界标识&gt;/(photoDirectory 配置值已含在此路径中) */
 	public static Path photosRoot() {
-		return base().resolve(BirdWatchConfig.photoDirectory);
+		return base();
+	}
+
+	/** 印刷图客户端缓存目录(渲染按需请求服务端后落盘) */
+	public static Path printCacheRoot() {
+		return photosRoot().resolve("print_cache");
 	}
 
 	/**
-	 * 解析照片路径(读取):优先世界存档根,找不到回退旧根 .minecraft/&lt;photoDirectory&gt;。
-	 * 存档隔离改造前的旧印刷照片/图鉴记录路径相对旧根,回退保证兼容。
+	 * 解析照片路径(读取):优先当前世界照片根,找不到回退旧根 .minecraft/&lt;photoDirectory&gt;。
+	 * 世界分目录改造前的旧照片/图鉴记录路径相对旧根,回退保证兼容。
 	 */
 	public static Path resolvePhoto(String photoPath) {
 		Path worldPath = photosRoot().resolve(photoPath);
@@ -32,14 +37,29 @@ public final class PhotoStorage {
 		return java.nio.file.Files.exists(legacyPath) ? legacyPath : worldPath;
 	}
 
-	/** 存档隔离基目录:单人游戏用当前世界存档目录 */
+	/** 旧照片根(世界分目录改造前的 .minecraft/birdwatch/photos/,兼容回退用) */
+	public static Path legacyRoot() {
+		return FabricLoader.getInstance().getGameDir().resolve(BirdWatchConfig.photoDirectory);
+	}
+
+	/**
+	 * 照片基目录 = gameDir/birdwatch/photos/&lt;世界标识&gt;/。
+	 * 世界标识:单机取世界存档目录名(不同存档照片分开);
+	 * 多人取服务器 ip(净化为 [a-z0-9_]);未进世界 → "local"。
+	 */
 	private static Path base() {
 		Minecraft mc = Minecraft.getInstance();
-		MinecraftServer server = mc.getSingleplayerServer();
-		if (server != null) {
-			return server.getWorldPath(LevelResource.ROOT);
+		String worldKey;
+		if (mc.hasSingleplayerServer() && mc.getSingleplayerServer() != null) {
+			worldKey = mc.getSingleplayerServer().getWorldPath(
+				net.minecraft.world.level.storage.LevelResource.ROOT).getFileName().toString();
+		} else if (mc.getCurrentServer() != null) {
+			worldKey = mc.getCurrentServer().ip.replaceAll("[^a-zA-Z0-9]", "_");
+		} else {
+			worldKey = "local";
 		}
-		return FabricLoader.getInstance().getGameDir();
+		return FabricLoader.getInstance().getGameDir()
+			.resolve("birdwatch").resolve("photos").resolve(worldKey);
 	}
 
 	private PhotoStorage() {

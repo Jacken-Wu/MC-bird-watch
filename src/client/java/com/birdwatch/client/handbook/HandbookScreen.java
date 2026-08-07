@@ -522,49 +522,6 @@ public class HandbookScreen extends Screen {
 		init();
 	}
 
-	/** 由照片路径(相对 photos)+ 裁剪矩形重建印刷照片物品(旧照片返还用);评分从照片元数据读取 */
-	private static ItemStack createPrintFromPhoto(String photoPath, String crop) {
-		try {
-			Path json = com.birdwatch.client.photo.PhotoStorage.photosRoot()
-				.resolve(photoPath).resolveSibling(
-					java.nio.file.Path.of(photoPath).getFileName().toString().replace(".png", ".json"));
-			if (!Files.exists(json)) {
-				return null;
-			}
-			String raw = Files.readString(json, java.nio.charset.StandardCharsets.UTF_8);
-			Map<?, ?> data = new com.google.gson.Gson().fromJson(raw, Map.class);
-			String species = "";
-			int score = 0;
-			String tier = "";
-			Object birds = data.get("birds");
-			if (birds instanceof List<?> list && !list.isEmpty() && list.get(0) instanceof Map<?, ?> m) {
-				species = String.valueOf(m.get("species"));
-				if (m.get("score") instanceof Number n) {
-					score = n.intValue();
-				}
-				Object t = m.get("tier");
-				tier = t != null ? String.valueOf(t) : "";
-			}
-			ItemStack print = new ItemStack(ModItems.PHOTO_PRINT);
-			final String fPhoto = photoPath;
-			final String fSpecies = species;
-			final int fScore = score;
-			final String fTier = tier;
-			net.minecraft.world.item.component.CustomData.update(
-				net.minecraft.core.component.DataComponents.CUSTOM_DATA, print, tag -> {
-					tag.putString(PhotoPrintItem.KEY_PHOTO, fPhoto);
-					tag.putString(PhotoPrintItem.KEY_SPECIES, fSpecies);
-					tag.putInt(PhotoPrintItem.KEY_SCORE, fScore);
-					tag.putString(PhotoPrintItem.KEY_TIER, fTier);
-					tag.putString(PhotoPrintItem.KEY_CROP, crop == null ? "" : crop);
-				});
-			return print;
-		} catch (Exception e) {
-			BirdWatchMod.LOGGER.error("[BirdWatch] 旧照片返还构造失败 {}", photoPath, e);
-			return null;
-		}
-	}
-
 	/** 屏幕内提示(3 秒) */
 	private void showNotice(String text) {
 		notice = text;
@@ -581,16 +538,20 @@ public class HandbookScreen extends Screen {
 		return species().textureId();
 	}
 
-	/** 照片预览:读照片 PNG,按印刷裁剪矩形裁切后注册纹理(缓存 key 含裁剪);返回纹理与尺寸 */
-	private PhotoTex textureForPhoto(String relativePath, String crop) {
-		String cacheKey = relativePath + "#" + (crop == null ? "" : crop);
+	/**
+	 * 照片预览:读印刷图(printId,客户端缓存),按印刷裁剪矩形裁切后注册纹理。
+	 * 缓存缺失时向服务端请求(印刷图存服务端),返回 null 待缓存就绪后重绘。
+	 */
+	private PhotoTex textureForPhoto(String printId, String crop) {
+		String cacheKey = printId + "#" + (crop == null ? "" : crop);
 		PhotoTex cached = textureCache.get(cacheKey);
 		if (cached != null) {
 			return cached;
 		}
-		Path root = com.birdwatch.client.photo.PhotoStorage.photosRoot();
-		Path png = root.resolve(relativePath);
+		Path png = com.birdwatch.client.photo.PhotoStorage.printCacheRoot().resolve(printId + ".png");
 		if (!Files.exists(png)) {
+			net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
+				new com.birdwatch.network.ModNetworking.PrintImageRequestPayload(printId));
 			return null;
 		}
 		double[] c = parseCrop(crop);
@@ -610,7 +571,7 @@ public class HandbookScreen extends Screen {
 			source.close();
 			Identifier id = Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "hb_" + cacheKey.hashCode());
 			Minecraft.getInstance().getTextureManager().register(id,
-				new DynamicTexture(() -> "birdwatch handbook " + relativePath, image));
+				new DynamicTexture(() -> "birdwatch handbook " + printId, image));
 			PhotoTex tex = new PhotoTex(id, w, h);
 			textureCache.put(cacheKey, tex);
 			return tex;

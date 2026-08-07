@@ -31,7 +31,7 @@ public final class HandbookProgress {
 
 	public static void load() {
 		ENTRIES.clear();
-		Path file = file();
+		Path file = Files.exists(file()) ? file() : legacyFile(); // 旧版位置回退
 		if (!Files.exists(file)) {
 			return;
 		}
@@ -100,7 +100,16 @@ public final class HandbookProgress {
 		}
 	}
 
+	/**
+	 * 图鉴进度文件:存当前世界照片根内(按世界分目录,多人各客户端独立)。
+	 * 旧版(世界分目录改造前)文件在 photos 根下,读取时回退。
+	 */
 	private static Path file() {
-		return com.birdwatch.client.photo.PhotoStorage.photosRoot().resolveSibling("handbook.json");
+		return com.birdwatch.client.photo.PhotoStorage.photosRoot().resolve("handbook.json");
+	}
+
+	/** 旧版图鉴进度位置(兼容回退读取) */
+	private static Path legacyFile() {
+		return com.birdwatch.client.photo.PhotoStorage.legacyRoot().resolve("handbook.json");
 	}
 }

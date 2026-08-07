@@ -15,8 +15,10 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * 照片索引:扫描照片目录,JSON 元数据 + PNG 一一配对。
+ * 照片索引:扫描数字照片目录,JSON 元数据 + PNG 一一配对。
  * 相册 UI 的数据源(按文件名倒序 = 最新在前)。
+ * 只索引数字照片:跳过 print_cache(印刷图客户端缓存)与旧 印刷/ 目录 ——
+ * 相册与印刷物品是两套管理体系,相册不管理印刷备份。
  */
 public final class PhotoIndex {
 	private static final Gson GSON = new Gson();
@@ -32,7 +34,10 @@ public final class PhotoIndex {
 		}
 		List<PhotoRecord> result = new ArrayList<>();
 		try (Stream<Path> walk = Files.walk(root)) {
-			walk.filter(p -> p.getFileName().toString().endsWith(".json")).forEach(json -> {
+			walk.filter(p -> p.getFileName().toString().endsWith(".json"))
+				.filter(p -> !p.startsWith(com.birdwatch.client.photo.PhotoStorage.printCacheRoot()))
+				.filter(p -> !p.toString().contains("印刷"))
+				.forEach(json -> {
 				try {
 					Map<String, Object> data = GSON.fromJson(
 						Files.readString(json, StandardCharsets.UTF_8), Map.class);

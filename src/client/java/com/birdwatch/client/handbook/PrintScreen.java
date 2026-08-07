@@ -250,31 +250,31 @@ public class PrintScreen extends Screen {
 			score = 0;
 			tier = "";
 		}
-		// 裁剪结果单独保存到 photos/印刷/(与相册原图隔离,删除原图不影响印刷照片)
-		final String cropStr = cropX + "," + cropY + "," + cropW + "," + cropH;
-		final String relative = saveCroppedPhoto(cropStr);
-		if (relative == null) {
+		// 裁剪 + 缩放 512px + PNG 编码,字节上传服务端(印刷图存服务端存档,与物品绑定)
+		final double[] c = parseCrop(cropX + "," + cropY + "," + cropW + "," + cropH);
+		final byte[] pngBytes = cropAndEncode(c);
+		if (pngBytes == null) {
 			mc.player.sendSystemMessage(Component.translatable("screen.birdwatch.print.fail"));
 			return;
 		}
 
-		// 印刷请求走服务端:物品由服务端创建入包、服务端消耗纸
+		// 印刷请求走服务端:服务端写印刷图文件、消耗纸、创建物品入包
 		// (客户端直接 add 到本地背包是幽灵物品,生存模式点击即被同步清掉)
+		String birdsJson = new com.google.gson.Gson().toJson(birds);
 		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
 			new com.birdwatch.network.ModNetworking.PrintRequestPayload(
-				relative, species, score, tier, "0,0,1,1")); // 裁剪已烘焙进文件
-		BirdWatchMod.LOGGER.info("[Print] 印刷请求已发送 path={}", relative);
+				pngBytes, species, score, tier, "0,0,1,1", birdsJson)); // 裁剪已烘焙进文件
+		BirdWatchMod.LOGGER.info("[Print] 印刷请求已发送 bytes={} species={}", pngBytes.length, species);
 		mc.player.sendSystemMessage(Component.translatable("screen.birdwatch.print.done"));
 		this.onClose();
 	}
 
 	/**
-	 * 按当前裁剪矩形裁切原图,保存到 photos/印刷/,并写配套 JSON 元数据(物种/评分,
-	 * 供旧照片返还时重建印刷物品)。返回相对 photos 根目录的路径;失败返回 null。
+	 * 按当前裁剪矩形裁切原图 → 缩放(最大边 512px)→ PNG 编码。
+	 * 返回 PNG 字节;失败返回 null。
 	 */
-	private String saveCroppedPhoto(String cropStr) {
+	private byte[] cropAndEncode(double[] c) {
 		try {
-			double[] c = parseCrop(cropStr);
 			NativeImage source;
 			try (InputStream in = Files.newInputStream(record.pngPath())) {
 				source = NativeImage.read(in);
@@ -291,31 +291,43 @@ public class PrintScreen extends Screen {
 				}
 			}
 			source.close();
-
-			Path dir = com.birdwatch.client.photo.PhotoStorage.photosRoot().resolve("印刷");
-			Files.createDirectories(dir);
-			String base = record.name().replace(".png", "");
-			Path png = dir.resolve(base + ".png");
-			int counter = 1;
-			while (Files.exists(png)) {
-				png = dir.resolve(base + "_" + (counter++) + ".png");
-			}
-			cropped.writeToFile(png);
+			// 缩放最大边 512px(等比),控制网络包大小;印刷纹理展示本就小,清晰度足够
+			NativeImage scaled = scaleMaxSide(cropped, 512);
 			cropped.close();
-			// 配套元数据(复制原照片的 birds 评分,返还时用于重建印刷物品)
-			String jsonName = png.getFileName().toString().replace(".png", ".json");
-			Map<String, Object> meta = new java.util.LinkedHashMap<>();
-			meta.put("source", com.birdwatch.client.photo.PhotoStorage.photosRoot().relativize(record.pngPath()).toString().replace('\\', '/'));
-			meta.put("crop", cropStr);
-			meta.put("birds", record.data().get("birds"));
-			Files.writeString(png.resolveSibling(jsonName),
-				new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(meta),
-				java.nio.charset.StandardCharsets.UTF_8);
-			return com.birdwatch.client.photo.PhotoStorage.photosRoot().relativize(png).toString().replace('\\', '/');
+			// 26.2 NativeImage 无 writeToBytes:临时文件中转 → 读字节 → 删除
+			Path tmp = Files.createTempFile("birdwatch_print", ".png");
+			try {
+				scaled.writeToFile(tmp);
+				return Files.readAllBytes(tmp);
+			} finally {
+				scaled.close();
+				Files.deleteIfExists(tmp);
+			}
 		} catch (IOException e) {
-			BirdWatchMod.LOGGER.error("[BirdWatch] 裁剪照片保存失败", e);
+			BirdWatchMod.LOGGER.error("[BirdWatch] 裁剪照片编码失败", e);
 			return null;
 		}
+	}
+
+	/** 等比缩放到最大边 ≤ maxSide;已满足则不缩放(返回原图) */
+	private static NativeImage scaleMaxSide(NativeImage img, int maxSide) {
+		int w = img.getWidth();
+		int h = img.getHeight();
+		if (w <= maxSide && h <= maxSide) {
+			return img;
+		}
+		double scale = (double) maxSide / Math.max(w, h);
+		int nw = Math.max(1, (int) Math.round(w * scale));
+		int nh = Math.max(1, (int) Math.round(h * scale));
+		NativeImage out = new NativeImage(nw, nh, true);
+		for (int y = 0; y < nh; y++) {
+			for (int x = 0; x < nw; x++) {
+				out.setPixel(x, y, img.getPixel(Math.min(w - 1, (int) (x / scale)),
+					Math.min(h - 1, (int) (y / scale))));
+			}
+		}
+		img.close();
+		return out;
 	}
 
 	private static double[] parseCrop(String cropStr) {

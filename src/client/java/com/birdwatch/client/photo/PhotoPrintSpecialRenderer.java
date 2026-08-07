@@ -91,8 +91,8 @@ public class PhotoPrintSpecialRenderer implements SpecialModelRenderer<PhotoPrin
 			Identifier texId = TEXTURE_CACHE.computeIfAbsent(data.cacheKey(),
 				k -> loadCropTexture(data.photoPath(), data.cropX(), data.cropY(), data.cropW(), data.cropH()));
 			if (texId == null) {
-				BirdWatchMod.LOGGER.info("[Print] 纹理加载失败(文件缺失?) path='{}' root={}",
-					data.photoPath(), com.birdwatch.client.photo.PhotoStorage.photosRoot());
+				BirdWatchMod.LOGGER.info("[Print] 纹理加载失败(缓存缺失,已请求服务端) printId='{}' cache={}",
+					data.photoPath(), com.birdwatch.client.photo.PhotoStorage.printCacheRoot());
 				return;
 			}
 			BirdWatchMod.LOGGER.info("[Print] 纹理就绪 texId={} path='{}'", texId, data.photoPath());
@@ -127,11 +127,18 @@ public class PhotoPrintSpecialRenderer implements SpecialModelRenderer<PhotoPrin
 		}
 	}
 
-	/** 加载照片 → 按裁剪矩形裁切 → 注册动态纹理;失败返回 null */
+	/**
+	 * 加载印刷图 → 按裁剪矩形裁切 → 注册动态纹理;失败返回 null。
+	 * 图片数据在服务端存档:优先读客户端缓存 print_cache/&lt;printId&gt;.png,
+	 * 缺失时向服务端请求(本次渲染返回 null,缓存就绪后下一帧自然显示)。
+	 */
 	private static Identifier loadCropTexture(String photoPath, double cropX, double cropY, double cropW, double cropH) {
 		try {
-			Path png = com.birdwatch.client.photo.PhotoStorage.resolvePhoto(photoPath);
+			Path png = com.birdwatch.client.photo.PhotoStorage.printCacheRoot().resolve(photoPath + ".png");
 			if (!Files.exists(png)) {
+				// 按需请求服务端(印刷图存服务端,多人模式下本机可能没有该文件)
+				net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
+					new com.birdwatch.network.ModNetworking.PrintImageRequestPayload(photoPath));
 				return null;
 			}
 			NativeImage source;
