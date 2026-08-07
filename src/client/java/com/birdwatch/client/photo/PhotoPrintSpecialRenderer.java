@@ -31,11 +31,18 @@ import java.util.function.Consumer;
  */
 public class PhotoPrintSpecialRenderer implements SpecialModelRenderer<PhotoPrintSpecialRenderer.PhotoPrintData> {
 
-	/** 渲染参数:照片路径(相对 photos 根)+ 裁剪矩形(归一化) */
-	public record PhotoPrintData(String photoPath, double cropX, double cropY, double cropW, double cropH) {
-		/** 纹理缓存 key(照片 + 裁剪矩形) */
+	/**
+	 * 渲染参数:照片路径 + 裁剪矩形(归一化)。
+	 * pending 标记:缓存文件缺失时置 true —— GUI 物品图标 atlas 按 modelIdentity 缓存槽位,
+	 * 槽位 READY 后不再重绘(缓存缺失时烘焙成空白 → 永久空白)。
+	 * 缓存缺失时 identity 带 #pending,图片到达后 identity 变化 → atlas 分配新槽位重绘。
+	 */
+	public record PhotoPrintData(String photoPath, double cropX, double cropY, double cropW, double cropH,
+		boolean pending) {
+		/** 纹理缓存 key(照片 + 裁剪矩形 + pending 状态) */
 		String cacheKey() {
-			return photoPath + "#" + cropX + "," + cropY + "," + cropW + "," + cropH;
+			return photoPath + "#" + cropX + "," + cropY + "," + cropW + "," + cropH
+				+ (pending ? "#pending" : "");
 		}
 	}
 
@@ -43,12 +50,17 @@ public class PhotoPrintSpecialRenderer implements SpecialModelRenderer<PhotoPrin
 	public PhotoPrintData extractArgument(ItemStack stack) {
 		var data = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
 		if (data == null) {
-			return new PhotoPrintData("", 0, 0, 1, 1);
+			return new PhotoPrintData("", 0, 0, 1, 1, false);
 		}
 		var tag = data.copyTag();
 		String photo = tag.getString(PhotoPrintItem.KEY_PHOTO).orElse("");
 		double[] crop = parseCrop(tag.getString(PhotoPrintItem.KEY_CROP).orElse(""));
-		return new PhotoPrintData(photo, crop[0], crop[1], crop[2], crop[3]);
+		// 缓存缺失 → pending(请求服务端后 identity 变化触发 atlas 重绘);
+		// 旧路径格式(photo 含 / 或 .png)不走 print_cache,恒非 pending
+		boolean pending = !photo.contains("/") && !photo.contains(".png")
+			&& !java.nio.file.Files.exists(
+				com.birdwatch.client.photo.PhotoStorage.printCacheRoot().resolve(photo + ".png"));
+		return new PhotoPrintData(photo, crop[0], crop[1], crop[2], crop[3], pending);
 	}
 
 	private static double[] parseCrop(String crop) {

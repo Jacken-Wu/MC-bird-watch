@@ -262,6 +262,9 @@ public final class ModNetworking {
 				if (!player.getInventory().add(print)) {
 					player.drop(print, false);
 				}
+				// 主动下发印刷图给印刷者:物品入包后 GUI 图标首次渲染需要缓存已就绪,
+				// 否则 atlas 槽位烘焙成空白且不再重绘(物品栏无缩略图,踩坑记录)
+				ServerPlayNetworking.send(player, new PrintImagePayload(printId, payload.pngBytes()));
 			});
 		});
 

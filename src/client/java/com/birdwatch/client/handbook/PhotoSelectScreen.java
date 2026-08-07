@@ -155,7 +155,11 @@ public class PhotoSelectScreen extends Screen {
 		return true;
 	}
 
-	/** 读印刷照片的裁剪文件,注册缩略图纹理 */
+	/**
+	 * 读印刷照片缩略图,注册纹理。
+	 * 新架构(photo=printId):读客户端 print_cache,缺失时按需请求服务端;
+	 * 旧架构兼容(photo 含 "/" 或 ".png"):读旧照片根。
+	 */
 	private Identifier thumbnailFor(ItemStack stack) {
 		var data = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
 		if (data == null) {
@@ -169,7 +173,17 @@ public class PhotoSelectScreen extends Screen {
 		if (cached != null) {
 			return cached;
 		}
-		Path png = com.birdwatch.client.photo.PhotoStorage.resolvePhoto(photo);
+		Path png;
+		if (photo.contains("/") || photo.contains(".png")) {
+			png = com.birdwatch.client.photo.PhotoStorage.resolvePhoto(photo);
+		} else {
+			png = com.birdwatch.client.photo.PhotoStorage.printCacheRoot().resolve(photo + ".png");
+			if (!Files.exists(png)) {
+				net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
+					new com.birdwatch.network.ModNetworking.PrintImageRequestPayload(photo));
+				return null;
+			}
+		}
 		if (!Files.exists(png)) {
 			return null;
 		}
