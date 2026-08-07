@@ -1,15 +1,9 @@
 {
 	"type": "minecraft:crafting_shapeless",
 	"ingredients": [
-		{
-			"item": "minecraft:glass"
-		},
-		{
-			"item": "minecraft:copper_ingot"
-		},
-		{
-			"item": "minecraft:copper_ingot"
-		}
+		"minecraft:glass",
+		"minecraft:copper_ingot",
+		"minecraft:copper_ingot"
 	],
 	"result": {
 		"count": 1,

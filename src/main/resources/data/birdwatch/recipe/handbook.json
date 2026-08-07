@@ -1,12 +1,8 @@
 {
 	"type": "minecraft:crafting_shapeless",
 	"ingredients": [
-		{
-			"item": "minecraft:book"
-		},
-		{
-			"item": "minecraft:feather"
-		}
+		"minecraft:book",
+		"minecraft:feather"
 	],
 	"result": {
 		"count": 1,
