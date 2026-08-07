@@ -443,7 +443,8 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 			return true;
 		}
 		// 水平朝向锥角:玩家相对方向与鸟朝向前方夹角
-		Vec3 forward = Vec3.directionFromRotation(getYRot(), 0.0F).multiply(1, 0, 1).normalize();
+		// 注意:directionFromRotation(xRot=俯仰, yRot=偏航),水平方向必须 xRot=0
+		Vec3 forward = Vec3.directionFromRotation(0.0F, getYRot()).multiply(1, 0, 1).normalize();
 		Vec3 toPlayerH = toPlayer.multiply(1, 0, 1).normalize();
 		if (forward.dot(toPlayerH) < Math.cos(Math.toRadians(SIGHT_CONE_DEGREES))) {
 			return false;
@@ -680,10 +681,10 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 				}
 				float yaw = (float) Math.toDegrees(Math.atan2(-away.x, away.z))
 					+ (getRandom().nextFloat() * 2.0F - 1.0F) * 60.0F;
-				dir = Vec3.directionFromRotation(yaw, 0.0F);
+				dir = Vec3.directionFromRotation(0.0F, yaw);
 			} else {
 				float yaw = getYRot() + (getRandom().nextFloat() * 2.0F - 1.0F) * 120.0F;
-				dir = Vec3.directionFromRotation(yaw, 0.0F);
+				dir = Vec3.directionFromRotation(0.0F, yaw);
 			}
 			Vec3 target = position().add(dir.scale(dist));
 			getNavigation().moveTo(target.x, groundAt(target.x, target.z) + CRUISE_ALTITUDE, target.z, FLIGHT_NAV_SPEED);
@@ -966,7 +967,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 			if (--alertTicks <= 0) {
 				Vec3 away = alertTarget != null
 					? bird.position().subtract(alertTarget.position())
-					: Vec3.directionFromRotation(bird.getYRot(), 0);
+					: Vec3.directionFromRotation(0.0F, bird.getYRot());
 				bird.startTakeoff(away);
 			}
 		}
@@ -1234,7 +1235,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 				float yaw = bird.getYRot() + (bird.getRandom().nextFloat() * 2.0F - 1.0F) * 160.0F;
 				double dist = bird.species().strollFlyMinDist()
 					+ bird.getRandom().nextDouble() * (bird.species().strollFlyMaxDist() - bird.species().strollFlyMinDist());
-				Vec3 dir = Vec3.directionFromRotation(yaw, 0.0F);
+				Vec3 dir = Vec3.directionFromRotation(0.0F, yaw);
 				Vec3 p = bird.position().add(dir.scale(dist));
 				target = BlockPos.containing(p.x, bird.position().y, p.z);
 				fly = bird.getRandom().nextFloat() < bird.species().strollFlyChanceExplore();
@@ -1256,7 +1257,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 			// 触发探索飞行离开水域环境 —— 否则鸟被困在原地,视觉上「待在水里不飞走」
 			float yaw = bird.getYRot() + (bird.getRandom().nextFloat() * 2.0F - 1.0F) * 160.0F;
 			double dist = 15.0 + bird.getRandom().nextDouble() * 15.0;
-			Vec3 dir = Vec3.directionFromRotation(yaw, 0.0F);
+			Vec3 dir = Vec3.directionFromRotation(0.0F, yaw);
 			Vec3 p = bird.position().add(dir.scale(dist));
 			target = BlockPos.containing(p.x, bird.position().y, p.z);
 			fly = true;
