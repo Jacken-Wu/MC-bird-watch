@@ -35,10 +35,11 @@ public final class PhotoScorer {
 	private static final double W_NOISE = 0.15;
 	private static final double W_OCCLUSION = 0.10;
 
-	/** 检测半径(米,长焦基准:400mm 全距离 200m,用户定稿) */
-	private static final double SCAN_RADIUS = 200.0;
-	/** 识别距离基准焦距(mm):此焦距获得 SCAN_RADIUS 全距离 */
-	private static final double SCAN_BASE_FOCAL = 400.0;
+	/** 识别距离线性映射锚点(用户定稿):24mm → 8m,400mm → 200m */
+	private static final double SCAN_FOCAL_MIN = 24.0;
+	private static final double SCAN_RANGE_MIN = 8.0;
+	private static final double SCAN_FOCAL_MAX = 400.0;
+	private static final double SCAN_RANGE_MAX = 200.0;
 	/** 全画幅弥散圆(mm),与 DoF 后处理一致 */
 	private static final double COC_THRESHOLD = 0.03;
 	/** 参考画面高度(像素,评分用归一化尺寸) */
@@ -49,7 +50,11 @@ public final class PhotoScorer {
 	private PhotoScorer() {
 	}
 
-	/** 对画面内每只鸟独立评分,按得分降序返回 */
+	/**
+	 * 对画面内每只鸟独立评分,按得分降序返回。
+	 * 识别距离按焦距线性映射(用户定稿):24mm → 8m,400mm → 200m;
+	 * 鸟评分与生物解锁共用同一范围。
+	 */
 	public static List<ScoredBird> scoreScene(Minecraft mc, CameraSession session) {
 		List<ScoredBird> result = new ArrayList<>();
 		if (mc.level == null || mc.player == null || session.getLens() == null) {
@@ -63,9 +68,10 @@ public final class PhotoScorer {
 			return result;
 		}
 		Vec3 camPos = camera.position();
+		double radius = scanRadiusFor(session);
 
-		for (LivingEntity bird : inView(livingEntitiesInRange(mc, camera, SCAN_RADIUS),
-			camPos, forward, fovRad, SCAN_RADIUS)) {
+		for (LivingEntity bird : inView(livingEntitiesInRange(mc, camera, radius),
+			camPos, forward, fovRad, radius)) {
 			Optional<String> species = SpeciesRegistry.speciesIdOf(bird);
 			if (species.isEmpty()) {
 				continue;
@@ -78,9 +84,8 @@ public final class PhotoScorer {
 
 	/**
 	 * 画面内的原版生物图鉴实体 id(M4b:拍照解锁,不评分)。
-	 * 识别距离按焦距限制:焦距越短识别距离越近 ——
-	 * 24mm 广角约 24m,50mm 约 35m,200mm 约 70m,400mm 约 100m。
-	 * 防止广角随便一拍解锁一大半图鉴(用户定稿)。
+	 * 识别距离按焦距线性映射:24mm 广角仅 8m,400mm 长焦 200m ——
+	 * 广角必须贴近才能解锁,防随手一拍解锁大半图鉴(用户定稿)。
 	 */
 	public static List<String> detectBestiary(Minecraft mc, CameraSession session) {
 		List<String> result = new ArrayList<>();
@@ -103,13 +108,20 @@ public final class PhotoScorer {
 		return result;
 	}
 
-	/** 按焦距的识别距离(米):sqrt(焦距/400mm) × 100,焦距越短距离越近 */
+	/**
+	 * 按焦距的识别距离(米):24mm→8m 与 400mm→200m 线性插值。
+	 * 物理依据:视角 ∝ 1/焦距,识别距离与焦距近似线性。
+	 */
 	private static double scanRadiusFor(CameraSession session) {
 		int focal = session.getFocalLength();
-		if (focal <= 0) {
-			return SCAN_RADIUS;
+		if (focal <= SCAN_FOCAL_MIN) {
+			return SCAN_RANGE_MIN;
 		}
-		return SCAN_RADIUS * Math.sqrt(focal / SCAN_BASE_FOCAL);
+		if (focal >= SCAN_FOCAL_MAX) {
+			return SCAN_RANGE_MAX;
+		}
+		double t = (focal - SCAN_FOCAL_MIN) / (SCAN_FOCAL_MAX - SCAN_FOCAL_MIN);
+		return SCAN_RANGE_MIN + t * (SCAN_RANGE_MAX - SCAN_RANGE_MIN);
 	}
 
 	/** 相机半径内全部活体实体 */
