@@ -60,6 +60,9 @@ public final class ModNetworking {
 	/** 生物图鉴状态查询(客户端打开图鉴时) */
 	public static final CustomPacketPayload.Type<BestiaryQueryPayload> BESTIARY_QUERY =
 		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "bestiary_query"));
+	/** 任意拍照通知(第一次拍照成就) */
+	public static final CustomPacketPayload.Type<PhotoTakenPayload> PHOTO_TAKEN =
+		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "photo_taken"));
 	/** 生物图鉴状态回传(已解锁生物 id 集合) */
 	public static final CustomPacketPayload.Type<BestiaryStatePayload> BESTIARY_STATE =
 		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "bestiary_state"));
@@ -85,6 +88,17 @@ public final class ModNetworking {
 		@Override
 		public Type<? extends CustomPacketPayload> type() {
 			return PHOTO_RATED;
+		}
+	}
+
+	/** 任意拍照通知(空载荷,每次按下快门发送) */
+	public record PhotoTakenPayload() implements CustomPacketPayload {
+		public static final StreamCodec<RegistryFriendlyByteBuf, PhotoTakenPayload> CODEC =
+			StreamCodec.unit(new PhotoTakenPayload());
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return PHOTO_TAKEN;
 		}
 	}
 
@@ -279,6 +293,13 @@ public final class ModNetworking {
 			ServerPlayer player = context.player();
 			context.server().execute(() ->
 				PhotoRatedTrigger.INSTANCE.fire(player, payload.species(), payload.score()));
+		});
+
+		PayloadTypeRegistry.serverboundPlay().register(PHOTO_TAKEN, PhotoTakenPayload.CODEC);
+		ServerPlayNetworking.registerGlobalReceiver(PHOTO_TAKEN, (payload, context) -> {
+			ServerPlayer player = context.player();
+			context.server().execute(() ->
+				com.birdwatch.advancement.PhotoTakenTrigger.INSTANCE.fire(player));
 		});
 
 		PayloadTypeRegistry.serverboundPlay().register(BESTIARY_UNLOCK, BestiaryUnlockPayload.CODEC);

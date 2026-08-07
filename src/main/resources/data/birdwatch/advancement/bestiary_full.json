@@ -1,0 +1,23 @@
+{
+	"parent": "birdwatch:handbook_first",
+	"display": {
+		"icon": {
+			"id": "birdwatch:bestiary"
+		},
+		"title": {
+			"translate": "advancements.birdwatch.bestiary_full.title"
+		},
+		"description": {
+			"translate": "advancements.birdwatch.bestiary_full.description"
+		},
+		"frame": "challenge",
+		"show_toast": true,
+		"announce_to_chat": true,
+		"hidden": false
+	},
+	"criteria": {
+		"bestiary_full": {
+			"trigger": "birdwatch:bestiary_full"
+		}
+	}
+}

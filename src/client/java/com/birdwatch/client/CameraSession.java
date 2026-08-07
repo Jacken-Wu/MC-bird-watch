@@ -321,6 +321,8 @@ public final class CameraSession {
 			PhotoData data = snapshot();
 			BirdWatchMod.LOGGER.debug("[BirdWatch] 拍照:{}mm F{} 1/{} ISO{} 对焦{}m", data.focalLength, data.aperture,
 				shutterString(data.shutter), data.iso, (int) data.focusDistance);
+			// 任意拍照 → 第一次拍照成就(服务端触发器去重)
+			ClientPlayNetworking.send(new com.birdwatch.network.ModNetworking.PhotoTakenPayload());
 			// M2a:拍摄判定纯客户端,向服务端授奖(重复触发由服务端成就系统过滤)
 			for (com.birdwatch.client.photo.ScoredBird bird : data.birds()) {
 				if (bird.qualifies()) {

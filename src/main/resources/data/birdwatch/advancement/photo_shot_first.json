@@ -1,0 +1,22 @@
+{
+	"display": {
+		"icon": {
+			"id": "birdwatch:camera"
+		},
+		"title": {
+			"translate": "advancements.birdwatch.photo_shot_first.title"
+		},
+		"description": {
+			"translate": "advancements.birdwatch.photo_shot_first.description"
+		},
+		"frame": "task",
+		"show_toast": true,
+		"announce_to_chat": true,
+		"hidden": false
+	},
+	"criteria": {
+		"photo_taken": {
+			"trigger": "birdwatch:photo_taken"
+		}
+	}
+}

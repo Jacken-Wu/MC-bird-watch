@@ -27,7 +27,7 @@ public final class BestiaryProgress {
 	private BestiaryProgress() {
 	}
 
-	/** 拍照解锁:仅接受生物图鉴清单内的 id;重复解锁幂等 */
+	/** 拍照解锁:仅接受生物图鉴清单内的 id;重复解锁幂等;集齐全部 → 全图鉴成就 */
 	public static void unlock(ServerPlayer player, String entityId) {
 		if (BestiaryRegistry.typeOf(entityId).isEmpty()) {
 			BirdWatchMod.LOGGER.debug("[BirdWatch] 生物图鉴:忽略未知实体 {}", entityId);
@@ -41,6 +41,10 @@ public final class BestiaryProgress {
 		}
 		if (unlocked.add(entityId)) {
 			BirdWatchMod.LOGGER.info("[BirdWatch] {} 解锁生物图鉴条目 {}", player.getName().getString(), entityId);
+			// 全部收录 → 全生物图鉴成就(服务端触发器去重)
+			if (unlocked.size() >= BestiaryRegistry.allIds().size()) {
+				com.birdwatch.advancement.BestiaryFullTrigger.INSTANCE.fire(player);
+			}
 		}
 	}
 

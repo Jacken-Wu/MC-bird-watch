@@ -38,5 +38,9 @@ public class BirdWatchMod implements ModInitializer {
 			Identifier.fromNamespaceAndPath(MOD_ID, "photo_rated"), PhotoRatedTrigger.INSTANCE);
 		Registry.register(net.minecraft.core.registries.BuiltInRegistries.TRIGGER_TYPES,
 			Identifier.fromNamespaceAndPath(MOD_ID, "handbook_unlock"), HandbookUnlockTrigger.INSTANCE);
+		Registry.register(net.minecraft.core.registries.BuiltInRegistries.TRIGGER_TYPES,
+			Identifier.fromNamespaceAndPath(MOD_ID, "photo_taken"), com.birdwatch.advancement.PhotoTakenTrigger.INSTANCE);
+		Registry.register(net.minecraft.core.registries.BuiltInRegistries.TRIGGER_TYPES,
+			Identifier.fromNamespaceAndPath(MOD_ID, "bestiary_full"), com.birdwatch.advancement.BestiaryFullTrigger.INSTANCE);
 	}
 }
