@@ -69,6 +69,7 @@
 	"screen.birdwatch.handbook.no_result": "没有匹配的物种",
 	"screen.birdwatch.handbook.search": "搜索",
 	"screen.birdwatch.handbook.preview_locked": "拍摄后印刷照片,贴入解锁此物种",
+	"screen.birdwatch.handbook.photo_missing": "照片加载中…",
 	"handbook.birdwatch.habitat_label": "习性",
 	"handbook.birdwatch.tip_label": "拍摄建议",
 	"screen.birdwatch.handbook.no_print": "背包里没有可贴入「%s」的印刷照片(需该物种评分 60+ 的照片印刷)",
