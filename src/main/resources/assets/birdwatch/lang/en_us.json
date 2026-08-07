@@ -101,8 +101,8 @@
 	"handbook.birdwatch.tier.unlock": "Unlock (60+)",
 	"handbook.birdwatch.tier.excellent": "Excellent (80+)",
 	"handbook.birdwatch.tier.perfect": "Perfect (95+)",
-	"advancements.birdwatch.photo_first.title": "First Try",
-	"advancements.birdwatch.photo_first.description": "Take a bird photo rated Unlock (60+) or better",
+	"advancements.birdwatch.photo_first.title": "First Click",
+	"advancements.birdwatch.photo_first.description": "Take your first photo",
 	"advancements.birdwatch.little_egret_unlock.title": "White Hunter",
 	"advancements.birdwatch.little_egret_unlock.description": "Take a Little Egret photo rated 60+",
 	"advancements.birdwatch.little_egret_excellent.title": "Grace Frozen",
@@ -220,8 +220,6 @@
 	"bestiary.birdwatch.zombie_nautilus.desc": "A strange union of drowned and nautilus, drifting slowly in the deep.",
 	"bestiary.birdwatch.zombie_villager.desc": "Infected villagers with hollow eyes. A splash of weakness and a golden apple cure them.",
 	"bestiary.birdwatch.zombified_piglin.desc": "Zombified piglins of the Nether, wandering in groups. Strike one, face the mob.",
-	"advancements.birdwatch.photo_shot_first.title": "First Click",
-	"advancements.birdwatch.photo_shot_first.description": "Take your first photo",
 	"advancements.birdwatch.bestiary_full.title": "Naturalist",
 	"advancements.birdwatch.bestiary_full.description": "Photograph every vanilla creature"
 }

@@ -15,11 +15,8 @@
 		"hidden": false
 	},
 	"criteria": {
-		"photo_rated": {
-			"trigger": "birdwatch:photo_rated",
-			"conditions": {
-				"minScore": 60
-			}
+		"photo_taken": {
+			"trigger": "birdwatch:photo_taken"
 		}
 	}
 }

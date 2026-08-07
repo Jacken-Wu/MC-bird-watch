@@ -102,7 +102,7 @@
 	"handbook.birdwatch.tier.excellent": "优秀级(80+)",
 	"handbook.birdwatch.tier.perfect": "完美级(95+)",
 	"advancements.birdwatch.photo_first.title": "初试身手",
-	"advancements.birdwatch.photo_first.description": "拍出一张评分达到解锁级(60+)的鸟照",
+	"advancements.birdwatch.photo_first.description": "拍下第一张照片",
 	"advancements.birdwatch.little_egret_unlock.title": "白衣猎手",
 	"advancements.birdwatch.little_egret_unlock.description": "拍出评分 60+ 的白鹭照片",
 	"advancements.birdwatch.little_egret_excellent.title": "优雅定格",
@@ -220,8 +220,6 @@
 	"bestiary.birdwatch.zombie_nautilus.desc": "溺尸与鹦鹉螺的奇异结合,在深海缓慢游荡。",
 	"bestiary.birdwatch.zombie_villager.desc": "被感染的村民,目光呆滞。喷溅虚弱药水与金苹果可以治愈它。",
 	"bestiary.birdwatch.zombified_piglin.desc": "下界的僵尸猪灵,成群游荡。攻击一只会引来一群报复。",
-	"advancements.birdwatch.photo_shot_first.title": "快门初响",
-	"advancements.birdwatch.photo_shot_first.description": "拍下第一张照片",
 	"advancements.birdwatch.bestiary_full.title": "博物学者",
 	"advancements.birdwatch.bestiary_full.description": "用相机收录全部原版生物"
 }
