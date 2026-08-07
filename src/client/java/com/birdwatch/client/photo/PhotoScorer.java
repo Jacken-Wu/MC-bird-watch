@@ -35,8 +35,8 @@ public final class PhotoScorer {
 	private static final double W_NOISE = 0.15;
 	private static final double W_OCCLUSION = 0.10;
 
-	/** 检测半径(米,长焦基准:400mm 全距离) */
-	private static final double SCAN_RADIUS = 100.0;
+	/** 检测半径(米,长焦基准:400mm 全距离 200m,用户定稿) */
+	private static final double SCAN_RADIUS = 200.0;
 	/** 识别距离基准焦距(mm):此焦距获得 SCAN_RADIUS 全距离 */
 	private static final double SCAN_BASE_FOCAL = 400.0;
 	/** 全画幅弥散圆(mm),与 DoF 后处理一致 */

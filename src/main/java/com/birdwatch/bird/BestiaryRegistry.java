@@ -28,24 +28,27 @@ import java.util.Optional;
 public final class BestiaryRegistry {
 	private static final Map<String, EntityType<?>> BY_ID = new LinkedHashMap<>();
 	private static final Map<EntityType<?>, String> ID_BY_TYPE = new java.util.IdentityHashMap<>();
+	private static boolean loaded;
 
 	private BestiaryRegistry() {
 	}
 
 	/**
-	 * 惰性构建:注册表在实体类型注册后才完整(任何实体构造前调用均安全)。
-	 * 收集条件:①实体类可实例化为 LivingEntity(排除玩家等特殊类型);
-	 * ②类别非 MISCELLANEOUS(排除物品展示框/船/箭等非生物)。
+	 * 惰性构建(一次):注册表在实体类型注册后才完整。
+	 * 收集条件:①minecraft 命名空间(排除本模组鸟);②非玩家;③类别非 MISC ——
+	 * 26.2 的 MISC 类别涵盖物品展示框/船/箭等非生物,其余类别均为可拍照活体。
+	 * 注意:EntityType.getBaseClass() 返回顶层基类(Entity)而非具体实体类,
+	 * 不能用于 LivingEntity 判定(实测 living=0)。
 	 */
 	private static void ensureLoaded() {
-		if (!BY_ID.isEmpty()) {
+		if (loaded) {
 			return;
 		}
+		loaded = true;
 		Registry<EntityType<?>> registry = BuiltInRegistries.ENTITY_TYPE;
 		for (Map.Entry<ResourceKey<EntityType<?>>, EntityType<?>> entry : registry.entrySet()) {
 			EntityType<?> type = entry.getValue();
 			String id = entry.getKey().identifier().getPath();
-			// 排除:非 minecraft 命名空间(本模组鸟)、玩家、非活体、杂项类别
 			if (!entry.getKey().identifier().getNamespace().equals("minecraft")) {
 				continue;
 			}
@@ -53,13 +56,6 @@ public final class BestiaryRegistry {
 				continue;
 			}
 			if (type.getCategory() == MobCategory.MISC) {
-				continue;
-			}
-			try {
-				if (!LivingEntity.class.isAssignableFrom(type.getBaseClass())) {
-					continue;
-				}
-			} catch (Exception e) {
 				continue;
 			}
 			BY_ID.put(id, type);

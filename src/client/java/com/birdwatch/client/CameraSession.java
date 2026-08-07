@@ -645,7 +645,7 @@ public final class CameraSession {
 			}
 			dofChain = newChain;
 			dofConfigDirty = false;
-			BirdWatchMod.LOGGER.debug("[BirdWatch] DoF 链重建:{}mm F{} 对焦{}m 曝光{:.1f}EV", focalLength, aperture, (int) focusDistance, exposureStops());
+			BirdWatchMod.LOGGER.debug("[BirdWatch] DoF 链重建:{}mm F{} 对焦{}m 曝光{}EV", focalLength, aperture, (int) focusDistance, exposureStops());
 		} catch (net.minecraft.client.renderer.ShaderManager.CompilationException e) {
 			BirdWatchMod.LOGGER.error("[BirdWatch] DoF 链重建失败,保留旧链", e);
 		}
