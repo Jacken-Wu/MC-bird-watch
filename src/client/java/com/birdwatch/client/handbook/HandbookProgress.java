@@ -4,6 +4,7 @@ import com.birdwatch.BirdWatchMod;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -108,8 +109,19 @@ public final class HandbookProgress {
 		return com.birdwatch.client.photo.PhotoStorage.photosRoot().resolve("handbook.json");
 	}
 
-	/** 旧版图鉴进度位置(兼容回退读取) */
+	/**
+	 * 旧版图鉴进度位置(兼容回退读取):
+	 * 旧版 file() 为 photosRoot().resolveSibling("handbook.json") ——
+	 * 单人时在 世界存档/birdwatch/handbook.json,多人时在 gameDir/birdwatch/handbook.json。
+	 */
 	private static Path legacyFile() {
-		return com.birdwatch.client.photo.PhotoStorage.legacyRoot().resolve("handbook.json");
+		Minecraft mc = Minecraft.getInstance();
+		if (mc.hasSingleplayerServer() && mc.getSingleplayerServer() != null) {
+			return mc.getSingleplayerServer().getWorldPath(
+				net.minecraft.world.level.storage.LevelResource.ROOT)
+				.resolve("birdwatch").resolve("handbook.json").normalize();
+		}
+		return FabricLoader.getInstance().getGameDir()
+			.resolve("birdwatch").resolve("handbook.json");
 	}
 }
