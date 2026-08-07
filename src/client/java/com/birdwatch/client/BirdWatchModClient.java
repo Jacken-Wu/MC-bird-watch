@@ -40,6 +40,15 @@ public class BirdWatchModClient implements ClientModInitializer {
 		registerEntityRenderers();
 		registerPhotoPrintSpecialModel();
 		registerPrintImageReceiver();
+		registerBestiaryReceiver();
+	}
+
+	/** 生物图鉴状态回传接收:更新客户端解锁视图 */
+	private static void registerBestiaryReceiver() {
+		net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(
+			com.birdwatch.network.ModNetworking.BESTIARY_STATE,
+			(payload, context) -> context.client().execute(() ->
+				com.birdwatch.client.handbook.BestiaryProgress.apply(payload.unlocked())));
 	}
 
 	/** 印刷图下发接收:写客户端 print_cache(渲染缓存),供印刷物品/图鉴槽位渲染 */

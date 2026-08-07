@@ -174,6 +174,7 @@ public final class CameraSession {
 		ItemStack held = mc.player.getMainHandItem();
 		boolean holdingCamera = held.is(ModItems.CAMERA);
 		boolean holdingHandbook = held.is(ModItems.HANDBOOK);
+		boolean holdingBestiary = held.is(ModItems.BESTIARY);
 		boolean holdingPhotoPrint = held.is(ModItems.PHOTO_PRINT);
 
 		if (!active) {
@@ -181,6 +182,10 @@ public final class CameraSession {
 				if (holdingHandbook) {
 					// 观鸟图鉴:右键打开图鉴界面(纯客户端本地进度)
 					openHandbook();
+				} else if (holdingBestiary) {
+					// 生物图鉴:右键打开原版生物图鉴(解锁状态来自服务端)
+					Minecraft.getInstance().setScreenAndShow(
+						new com.birdwatch.client.handbook.BestiaryScreen());
 				} else if (holdingPhotoPrint) {
 					// 印刷照片:右键预览(裁剪后的照片大图)。
 					// 但若准星瞄准了可交互目标(展示框/实体/方块),不抢交互,
@@ -321,6 +326,13 @@ public final class CameraSession {
 				if (bird.qualifies()) {
 					ClientPlayNetworking.send(new com.birdwatch.network.ModNetworking.PhotoRatedPayload(
 						bird.speciesId(), bird.score()));
+				}
+			}
+			// M4b:画面内的原版生物 → 生物图鉴拍照解锁(客户端去重,服务端附件持久化)
+			for (String entityId : bestiaryInShot) {
+				if (bestiarySentThisSession.add(entityId)) {
+					ClientPlayNetworking.send(
+						new com.birdwatch.network.ModNetworking.BestiaryUnlockPayload(entityId));
 				}
 			}
 			// 照片源 = dof_target(虚化处理后的画面本体,不含 UI)
@@ -702,6 +714,8 @@ public final class CameraSession {
 		// M2a:拍照时对画面内每只鸟六维评分(纯客户端判定)
 		java.util.List<com.birdwatch.client.photo.ScoredBird> birds =
 			com.birdwatch.client.photo.PhotoScorer.scoreScene(minecraft, this);
+		// M4b:画面内的原版生物(生物图鉴拍照解锁,不评分)
+		bestiaryInShot = com.birdwatch.client.photo.PhotoScorer.detectBestiary(minecraft, this);
 		return new PhotoData(
 			lens != null ? lens.id() : "",
 			focalLength,
@@ -714,6 +728,11 @@ public final class CameraSession {
 			birds
 		);
 	}
+
+	/** 最近一次拍照画面内的生物图鉴实体(拍照解锁用) */
+	private java.util.List<String> bestiaryInShot = java.util.List.of();
+	/** 会话内已发送解锁的生物(去重,避免同生物反复发 C2S) */
+	private final java.util.Set<String> bestiarySentThisSession = new java.util.HashSet<>();
 
 	private float clampToStops(float value, LensDefinition def) {
 		float[] stops = LensRegistry.apertureStops(def);

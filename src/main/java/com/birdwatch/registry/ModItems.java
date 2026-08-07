@@ -2,6 +2,7 @@ package com.birdwatch.registry;
 
 import com.birdwatch.BirdWatchMod;
 import com.birdwatch.camera.LensRegistry;
+import com.birdwatch.item.BestiaryItem;
 import com.birdwatch.item.CameraItem;
 import com.birdwatch.item.PhotoPrintItem;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
@@ -41,6 +42,11 @@ public final class ModItems {
 		.setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "handbook")))
 		.stacksTo(1));
 
+	/** 生物图鉴 —— 右键打开原版生物图鉴界面(拍照解锁,开局自带) */
+	public static final Item BESTIARY = new BestiaryItem(new Item.Properties()
+		.setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "bestiary")))
+		.stacksTo(1));
+
 	/** 印刷照片 —— 相册印刷(可裁剪)产出,贴入图鉴解锁鸟种 */
 	public static final Item PHOTO_PRINT = new PhotoPrintItem(new Item.Properties()
 		.setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "photo_print"))));
@@ -53,6 +59,7 @@ public final class ModItems {
 			LensRegistry.LENSES.forEach(def -> entries.accept(BuiltInRegistries.ITEM.getValue(
 				Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, def.id()))));
 			entries.accept(HANDBOOK);
+			entries.accept(BESTIARY);
 		})
 		.build();
 
@@ -64,6 +71,7 @@ public final class ModItems {
 		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "lens_400mm"), LENS_400MM);
 		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "lens_zoom_70_300"), LENS_ZOOM_70_300);
 		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "handbook"), HANDBOOK);
+		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "bestiary"), BESTIARY);
 		Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "photo_print"), PHOTO_PRINT);
 		Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB, BIRDWATCH_GROUP_KEY, BIRDWATCH_GROUP);
 	}

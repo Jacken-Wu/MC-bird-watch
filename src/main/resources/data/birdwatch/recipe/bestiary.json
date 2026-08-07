@@ -1,0 +1,17 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"key": {
+		"P": "minecraft:paper",
+		"B": "minecraft:bone",
+		"L": "minecraft:leather"
+	},
+	"pattern": [
+		"PP ",
+		"PBP",
+		"LL "
+	],
+	"result": {
+		"count": 1,
+		"id": "birdwatch:bestiary"
+	}
+}

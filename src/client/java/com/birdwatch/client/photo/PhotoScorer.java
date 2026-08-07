@@ -62,31 +62,7 @@ public final class PhotoScorer {
 		}
 		Vec3 camPos = camera.position();
 
-		// 画面内的鸟(视锥筛选:鸟中心与视线夹角 < 纵向 FOV/2)
-		AABB box = new AABB(camPos.x - SCAN_RADIUS, camPos.y - SCAN_RADIUS, camPos.z - SCAN_RADIUS,
-			camPos.x + SCAN_RADIUS, camPos.y + SCAN_RADIUS, camPos.z + SCAN_RADIUS);
-		List<Entity> nearby = mc.level.getEntities(camera.entity(), box, e -> true);
-		List<LivingEntity> birds = new ArrayList<>();
-		for (Entity entity : nearby) {
-			if (!(entity instanceof LivingEntity living)) {
-				continue;
-			}
-			Optional<String> species = SpeciesRegistry.speciesIdOf(entity);
-			if (species.isEmpty()) {
-				continue;
-			}
-			Vec3 toBird = living.getBoundingBox().getCenter().subtract(camPos);
-			double dist = toBird.length();
-			if (dist > SCAN_RADIUS || dist < 0.5) {
-				continue;
-			}
-			double angle = Math.acos(Mth.clamp(forward.dot(toBird.normalize()), -1, 1));
-			if (angle <= fovRad / 2 + 0.05) { // 加 0.05rad 边缘容差
-				birds.add(living);
-			}
-		}
-
-		for (LivingEntity bird : birds) {
+		for (LivingEntity bird : inView(livingEntitiesInRange(mc, camera), camPos, forward, fovRad)) {
 			Optional<String> species = SpeciesRegistry.speciesIdOf(bird);
 			if (species.isEmpty()) {
 				continue;
@@ -94,6 +70,61 @@ public final class PhotoScorer {
 			result.add(scoreBird(mc, session, bird, camera, camPos, forward, fovRad));
 		}
 		result.sort((a, b) -> Integer.compare(b.score(), a.score()));
+		return result;
+	}
+
+	/**
+	 * 画面内的原版生物图鉴实体 id(M4b:拍照解锁,不评分)。
+	 * 与 scoreScene 共用视锥扫描;原版生物即使不在鸟物种清单也识别。
+	 */
+	public static List<String> detectBestiary(Minecraft mc, CameraSession session) {
+		List<String> result = new ArrayList<>();
+		if (mc.level == null || mc.player == null || session.getLens() == null) {
+			return result;
+		}
+		Camera camera = mc.gameRenderer.mainCamera();
+		Vector3f forwardF = camera.rotation().transform(new Vector3f(0, 0, -1));
+		Vec3 forward = new Vec3(forwardF.x, forwardF.y, forwardF.z).normalize();
+		double fovRad = Math.toRadians(session.computeFov());
+		if (fovRad <= 0) {
+			return result;
+		}
+		Vec3 camPos = camera.position();
+		for (LivingEntity entity : inView(livingEntitiesInRange(mc, camera), camPos, forward, fovRad)) {
+			com.birdwatch.bird.BestiaryRegistry.idOf(entity.getType())
+				.ifPresent(result::add);
+		}
+		return result;
+	}
+
+	/** 相机 100 米内全部活体实体 */
+	private static List<LivingEntity> livingEntitiesInRange(Minecraft mc, Camera camera) {
+		AABB box = new AABB(camera.position().x - SCAN_RADIUS, camera.position().y - SCAN_RADIUS,
+			camera.position().z - SCAN_RADIUS, camera.position().x + SCAN_RADIUS,
+			camera.position().y + SCAN_RADIUS, camera.position().z + SCAN_RADIUS);
+		List<LivingEntity> result = new ArrayList<>();
+		for (Entity entity : mc.level.getEntities(camera.entity(), box, e -> true)) {
+			if (entity instanceof LivingEntity living) {
+				result.add(living);
+			}
+		}
+		return result;
+	}
+
+	/** 视锥筛选:实体中心与视线夹角 < 纵向 FOV/2(加 0.05rad 边缘容差) */
+	private static List<LivingEntity> inView(List<LivingEntity> entities, Vec3 camPos, Vec3 forward, double fovRad) {
+		List<LivingEntity> result = new ArrayList<>();
+		for (LivingEntity e : entities) {
+			Vec3 to = e.getBoundingBox().getCenter().subtract(camPos);
+			double dist = to.length();
+			if (dist > SCAN_RADIUS || dist < 0.5) {
+				continue;
+			}
+			double angle = Math.acos(Mth.clamp(forward.dot(to.normalize()), -1, 1));
+			if (angle <= fovRad / 2 + 0.05) {
+				result.add(e);
+			}
+		}
 		return result;
 	}
 

@@ -1,0 +1,17 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"key": {
+		"I": "minecraft:iron_ingot",
+		"G": "minecraft:glass",
+		"R": "minecraft:redstone"
+	},
+	"pattern": [
+		"III",
+		"G G",
+		" R "
+	],
+	"result": {
+		"count": 1,
+		"id": "birdwatch:camera"
+	}
+}

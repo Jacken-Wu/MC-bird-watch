@@ -25,6 +25,8 @@ import net.minecraft.world.level.storage.LevelResource;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import java.util.List;
+
 /**
  * 网络协议注册。
  *
@@ -41,6 +43,9 @@ public final class ModNetworking {
 		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "photo_rated"));
 	public static final CustomPacketPayload.Type<HandbookUnlockPayload> HANDBOOK_UNLOCK =
 		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "handbook_unlock"));
+	/** 生物图鉴拍照解锁(原版生物) */
+	public static final CustomPacketPayload.Type<BestiaryUnlockPayload> BESTIARY_UNLOCK =
+		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "bestiary_unlock"));
 	public static final CustomPacketPayload.Type<PrintRequestPayload> PRINT_REQUEST =
 		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "print_request"));
 	/** 印刷图主动下发(图鉴贴入时给贴入玩家) */
@@ -52,6 +57,12 @@ public final class ModNetworking {
 	/** 印刷图删除通知(服务端文件已删 → 客户端同步清 print_cache) */
 	public static final CustomPacketPayload.Type<PrintImageDeletePayload> PRINT_IMAGE_DELETE =
 		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "print_image_delete"));
+	/** 生物图鉴状态查询(客户端打开图鉴时) */
+	public static final CustomPacketPayload.Type<BestiaryQueryPayload> BESTIARY_QUERY =
+		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "bestiary_query"));
+	/** 生物图鉴状态回传(已解锁生物 id 集合) */
+	public static final CustomPacketPayload.Type<BestiaryStatePayload> BESTIARY_STATE =
+		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "bestiary_state"));
 
 	public record OpenLensMenuPayload() implements CustomPacketPayload {
 		public static final StreamCodec<RegistryFriendlyByteBuf, OpenLensMenuPayload> CODEC =
@@ -74,6 +85,44 @@ public final class ModNetworking {
 		@Override
 		public Type<? extends CustomPacketPayload> type() {
 			return PHOTO_RATED;
+		}
+	}
+
+	/** 生物图鉴状态查询(空载荷,客户端打开图鉴时发送) */
+	public record BestiaryQueryPayload() implements CustomPacketPayload {
+		public static final StreamCodec<RegistryFriendlyByteBuf, BestiaryQueryPayload> CODEC =
+			StreamCodec.unit(new BestiaryQueryPayload());
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return BESTIARY_QUERY;
+		}
+	}
+
+	/** 生物图鉴状态回传:已解锁生物 id 列表 */
+	public record BestiaryStatePayload(List<String> unlocked) implements CustomPacketPayload {
+		public static final StreamCodec<RegistryFriendlyByteBuf, BestiaryStatePayload> CODEC =
+			StreamCodec.composite(
+				ByteBufCodecs.STRING_UTF8.apply(net.minecraft.network.codec.ByteBufCodecs.collection(
+					java.util.ArrayList::new)), BestiaryStatePayload::unlocked,
+				BestiaryStatePayload::new);
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return BESTIARY_STATE;
+		}
+	}
+
+	/** 生物图鉴拍照解锁(原版生物 entity id) */
+	public record BestiaryUnlockPayload(String entityId) implements CustomPacketPayload {
+		public static final StreamCodec<RegistryFriendlyByteBuf, BestiaryUnlockPayload> CODEC =
+			StreamCodec.composite(
+				ByteBufCodecs.STRING_UTF8, BestiaryUnlockPayload::entityId,
+				BestiaryUnlockPayload::new);
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return BESTIARY_UNLOCK;
 		}
 	}
 
@@ -205,9 +254,10 @@ public final class ModNetworking {
 	}
 
 	public static void register() {
-		// 服务端 → 客户端:印刷图下发 / 删除通知
+		// 服务端 → 客户端:印刷图下发 / 删除通知 / 生物图鉴状态
 		PayloadTypeRegistry.clientboundPlay().register(PRINT_IMAGE, PrintImagePayload.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(PRINT_IMAGE_DELETE, PrintImageDeletePayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(BESTIARY_STATE, BestiaryStatePayload.CODEC);
 		// 印刷图周期 GC:每 10 分钟清理无引用且超龄的印刷图文件(防存档膨胀)
 		net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
 			if (server.getTickCount() % 12000 == 0 && server.overworld() != null) {
@@ -229,6 +279,22 @@ public final class ModNetworking {
 			ServerPlayer player = context.player();
 			context.server().execute(() ->
 				PhotoRatedTrigger.INSTANCE.fire(player, payload.species(), payload.score()));
+		});
+
+		PayloadTypeRegistry.serverboundPlay().register(BESTIARY_UNLOCK, BestiaryUnlockPayload.CODEC);
+		ServerPlayNetworking.registerGlobalReceiver(BESTIARY_UNLOCK, (payload, context) -> {
+			ServerPlayer player = context.player();
+			context.server().execute(() ->
+				com.birdwatch.event.BestiaryProgress.unlock(player, payload.entityId()));
+		});
+
+		// 生物图鉴状态查询:客户端打开图鉴 → 服务端回传已解锁集合
+		PayloadTypeRegistry.serverboundPlay().register(BESTIARY_QUERY, BestiaryQueryPayload.CODEC);
+		ServerPlayNetworking.registerGlobalReceiver(BESTIARY_QUERY, (payload, context) -> {
+			ServerPlayer player = context.player();
+			context.server().execute(() -> ServerPlayNetworking.send(player,
+				new BestiaryStatePayload(java.util.List.copyOf(
+					com.birdwatch.event.BestiaryProgress.unlockedOf(player)))));
 		});
 
 		PayloadTypeRegistry.serverboundPlay().register(HANDBOOK_UNLOCK, HandbookUnlockPayload.CODEC);

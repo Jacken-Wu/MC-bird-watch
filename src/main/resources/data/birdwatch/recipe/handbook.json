@@ -1,0 +1,16 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"key": {
+		"P": "minecraft:paper",
+		"L": "minecraft:leather"
+	},
+	"pattern": [
+		" P ",
+		"P P",
+		" L "
+	],
+	"result": {
+		"count": 1,
+		"id": "birdwatch:handbook"
+	}
+}

@@ -1,0 +1,16 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"key": {
+		"G": "minecraft:glass",
+		"C": "minecraft:copper_ingot"
+	},
+	"pattern": [
+		"CCC",
+		"CGC",
+		"CCC"
+	],
+	"result": {
+		"count": 1,
+		"id": "birdwatch:lens_400mm"
+	}
+}

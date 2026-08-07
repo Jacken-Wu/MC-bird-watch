@@ -24,7 +24,8 @@ public final class HandbookHandler {
 			if (!Boolean.TRUE.equals(target.getAttached(HANDBOOK_GIVEN))) {
 				target.setAttached(HANDBOOK_GIVEN, true);
 				player.getInventory().add(new ItemStack(ModItems.HANDBOOK));
-				BirdWatchMod.LOGGER.info("[BirdWatch] 已发放观鸟图鉴给 {}", player.getName().getString());
+				player.getInventory().add(new ItemStack(ModItems.BESTIARY));
+				BirdWatchMod.LOGGER.info("[BirdWatch] 已发放观鸟图鉴与生物图鉴给 {}", player.getName().getString());
 			}
 		});
 	}
