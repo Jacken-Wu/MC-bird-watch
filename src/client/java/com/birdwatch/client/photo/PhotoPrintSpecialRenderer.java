@@ -93,9 +93,6 @@ public class PhotoPrintSpecialRenderer implements SpecialModelRenderer<PhotoPrin
 	@Override
 	public void submit(PhotoPrintData data, PoseStack poseStack, SubmitNodeCollector collector,
 		int light, int overlay, boolean hasGlint, int tint) {
-		// 调试:定位展示框隐形问题
-		BirdWatchMod.LOGGER.info("[Print] submit path='{}' crop=({},{},{},{})",
-			data.photoPath(), data.cropX(), data.cropY(), data.cropW(), data.cropH());
 		if (data.photoPath().isEmpty()) {
 			return;
 		}
@@ -103,11 +100,10 @@ public class PhotoPrintSpecialRenderer implements SpecialModelRenderer<PhotoPrin
 			Identifier texId = TEXTURE_CACHE.computeIfAbsent(data.cacheKey(),
 				k -> loadCropTexture(data.photoPath(), data.cropX(), data.cropY(), data.cropW(), data.cropH()));
 			if (texId == null) {
-				BirdWatchMod.LOGGER.info("[Print] 纹理加载失败(缓存缺失,已请求服务端) printId='{}' cache={}",
-					data.photoPath(), com.birdwatch.client.photo.PhotoStorage.printCacheRoot());
+				BirdWatchMod.LOGGER.debug("[Print] 纹理加载失败(缓存缺失,已请求服务端) printId='{}'",
+					data.photoPath());
 				return;
 			}
-			BirdWatchMod.LOGGER.info("[Print] 纹理就绪 texId={} path='{}'", texId, data.photoPath());
 			NativeImage img = Minecraft.getInstance().getTextureManager().getTexture(texId)
 				instanceof DynamicTexture dt ? dt.getPixels() : null;
 			if (img == null) {

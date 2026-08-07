@@ -32,7 +32,7 @@ public final class MenuScreensRegistry {
 					return null;
 				});
 			map.put(ModMenuTypes.CAMERA_LENS_MENU, constructor);
-			BirdWatchMod.LOGGER.info("[BirdWatch] 相机镜头槽屏幕已注册,SCREENS 大小={}", map.size());
+			BirdWatchMod.LOGGER.debug("[BirdWatch] 相机镜头槽屏幕已注册,SCREENS 大小={}", map.size());
 		} catch (Exception e) {
 			BirdWatchMod.LOGGER.error("[BirdWatch] 相机镜头槽屏幕注册失败", e);
 		}

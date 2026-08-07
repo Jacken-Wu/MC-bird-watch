@@ -89,7 +89,7 @@ public final class CameraSession {
 		ClientTickEvents.END_CLIENT_TICK.register(instance::tick);
 		ClientHotbarScrollEvents.ALLOW.register(instance::onScroll);
 		LevelRenderEvents.END_MAIN.register(context -> instance.onLevelRenderEnd());
-		BirdWatchMod.LOGGER.info("[BirdWatch] 取景器会话已初始化");
+		BirdWatchMod.LOGGER.debug("[BirdWatch] 取景器会话已初始化");
 	}
 
 	public static CameraSession get() {
@@ -286,7 +286,6 @@ public final class CameraSession {
 		if (!value) {
 			captureQueued = false;
 		}
-		BirdWatchMod.LOGGER.info("[BirdWatch] 取景器 {}", value ? "开启" : "关闭");
 	}
 
 	public void exitViewfinder() {
@@ -315,7 +314,7 @@ public final class CameraSession {
 		if (captureQueued) {
 			captureQueued = false;
 			PhotoData data = snapshot();
-			BirdWatchMod.LOGGER.info("[BirdWatch] 拍照:{}mm F{} 1/{} ISO{} 对焦{}m", data.focalLength, data.aperture,
+			BirdWatchMod.LOGGER.debug("[BirdWatch] 拍照:{}mm F{} 1/{} ISO{} 对焦{}m", data.focalLength, data.aperture,
 				shutterString(data.shutter), data.iso, (int) data.focusDistance);
 			// M2a:拍摄判定纯客户端,向服务端授奖(重复触发由服务端成就系统过滤)
 			for (com.birdwatch.client.photo.ScoredBird bird : data.birds()) {
@@ -501,7 +500,6 @@ public final class CameraSession {
 		if (!active || lens == null) {
 			return;
 		}
-		BirdWatchMod.LOGGER.info("[BirdWatch] 链A执行(DoF→dof_target)");
 		try {
 			ensureDofTarget();
 			double ev = exposureStops();
@@ -635,7 +633,7 @@ public final class CameraSession {
 			}
 			dofChain = newChain;
 			dofConfigDirty = false;
-			BirdWatchMod.LOGGER.info("[BirdWatch] DoF 链重建:{}mm F{} 对焦{}m 曝光{:.1f}EV", focalLength, aperture, (int) focusDistance, exposureStops());
+			BirdWatchMod.LOGGER.debug("[BirdWatch] DoF 链重建:{}mm F{} 对焦{}m 曝光{:.1f}EV", focalLength, aperture, (int) focusDistance, exposureStops());
 		} catch (net.minecraft.client.renderer.ShaderManager.CompilationException e) {
 			BirdWatchMod.LOGGER.error("[BirdWatch] DoF 链重建失败,保留旧链", e);
 		}

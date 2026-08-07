@@ -210,7 +210,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 					getRandom().nextInt(33) - 16, 0, getRandom().nextInt(33) - 16);
 				if (standableAt(candidate)) {
 					setPos(candidate.getX() + 0.5, candidate.getY(), candidate.getZ() + 0.5);
-					BirdWatchMod.LOGGER.info("[Bird:{}] 生成于水域,已转移到干燥点 ({}, {}, {})",
+					BirdWatchMod.LOGGER.debug("[Bird:{}] 生成于水域,已转移到干燥点 ({}, {}, {})",
 						species().id(), candidate.getX(), candidate.getY(), candidate.getZ());
 					break;
 				}
@@ -344,23 +344,6 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 			new Vec3(pos.getX() + 0.5, pos.getY() + 16.0, pos.getZ() + 0.5),
 			ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
 		return hit.getType() != HitResult.Type.BLOCK;
-	}
-
-	/** 调试:80 格范围扫描统计(命中水样本 / 露天水样本),定位寻水失效环节 */
-	private String debugWaterStats() {
-		BlockPos pos = blockPosition();
-		int water = 0, open = 0;
-		for (int i = 0; i < 96; i++) {
-			BlockPos sample = pos.offset(
-				getRandom().nextInt(161) - 80, 0, getRandom().nextInt(161) - 80);
-			if (isWaterAtAnyDepth(sample)) {
-				water++;
-				if (isOpenWaterAt(sample)) {
-					open++;
-				}
-			}
-		}
-		return "water=" + water + "/96 open=" + open + "/96";
 	}
 
 	/** 采样点 ±32 格深度内是否有水(不要求露天) */
@@ -502,7 +485,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 
 	/** 定向飞行:飞向目标点(巡航高度飞行,接近后降落),水平 < 3 格或超时落地 */
 	public void enterGotoFlight(Vec3 target) {
-		BirdWatchMod.LOGGER.info("[Bird:{}] GOTO 飞行开始 target=({}, {}, {}) dist={}",
+		BirdWatchMod.LOGGER.debug("[Bird:{}] GOTO 飞行开始 target=({}, {}, {}) dist={}",
 			species().id(), target.x, target.y, target.z, position().distanceTo(target));
 		setState(State.FLYING);
 		setNoGravity(true);
@@ -654,12 +637,12 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 					flyTarget = new Vec3(flyTarget.x,
 						Math.max(groundAt(flyTarget.x, flyTarget.z) + 16.0, position().y + 16.0),
 						flyTarget.z);
-					BirdWatchMod.LOGGER.info("[Bird:{}] GOTO 寻路失败,抬升目标重试", species().id());
+					BirdWatchMod.LOGGER.debug("[Bird:{}] GOTO 寻路失败,抬升目标重试", species().id());
 					if (getNavigation().moveTo(flyTarget.x, flyTarget.y, flyTarget.z, FLIGHT_NAV_SPEED)) {
 						return;
 					}
 				}
-				BirdWatchMod.LOGGER.info("[Bird:{}] GOTO 寻路失败,落地", species().id());
+				BirdWatchMod.LOGGER.debug("[Bird:{}] GOTO 寻路失败,落地", species().id());
 				getNavigation().stop();
 				landFlight();
 				return;
@@ -715,13 +698,6 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 				flapSoundCooldown = 15 + getRandom().nextInt(11);
 				playSound(species().flap(), 0.5F, 1.0F);
 			}
-		}
-		// 调试心跳:每 5 秒输出一次完整状态
-		if (!level().isClientSide() && tickCount % 100 == 0) {
-			BirdWatchMod.LOGGER.info("[Bird:{}] HB state={} pos=({}, {}, {}) nav={} mode={}",
-				species().id(), state, (int) position().x, (int) position().y, (int) position().z,
-				getNavigation().isDone() ? "idle" : "busy",
-				flightMode);
 		}
 	}
 
@@ -892,7 +868,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 
 		@Override
 		public void start() {
-			BirdWatchMod.LOGGER.info("[Bird:{}] 落水自救,起飞 → ({}, {}, {})",
+			BirdWatchMod.LOGGER.debug("[Bird:{}] 落水自救,起飞 → ({}, {}, {})",
 				bird.species().id(), landTarget.getX(), landTarget.getY(), landTarget.getZ());
 			bird.enterGotoFlight(new Vec3(landTarget.getX() + 0.5, landTarget.getY(), landTarget.getZ() + 0.5));
 		}
@@ -1160,12 +1136,6 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 			if (--bird.returnWaterCooldown > 0) {
 				return false;
 			}
-			// 调试:每 200 tick 记录一次判定状态
-			if (bird.tickCount % 200 == 0) {
-				BirdWatchMod.LOGGER.info("[Bird:{}] 回水判定: cooldown={} navDone={} waterNear{}={}",
-					bird.species().id(), bird.returnWaterCooldown, bird.getNavigation().isDone(),
-					bird.species().waterFlyThreshold(), bird.waterWithin(bird.species().waterFlyThreshold()));
-			}
 			// 阈值内有水 → 栖息范围正常,无需回水
 			if (bird.waterWithin(bird.species().waterFlyThreshold())) {
 				return false;
@@ -1174,15 +1144,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 			Optional<BlockPos> water = bird.findWaterPosition(bird.species().waterRange());
 			if (water.isPresent()) {
 				waterTarget = water.get();
-				if (bird.tickCount % 200 == 0) {
-					BirdWatchMod.LOGGER.info("[Bird:{}] 回水判定: 找到水源 dist={}",
-						bird.species().id(), bird.blockPosition().distManhattan(waterTarget));
-				}
 				return true;
-			}
-			if (bird.tickCount % 200 == 0) {
-				BirdWatchMod.LOGGER.info("[Bird:{}] 回水判定: 未找到水源 {}", bird.species().id(),
-					bird.debugWaterStats());
 			}
 			return false;
 		}
@@ -1190,7 +1152,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 		@Override
 		public void start() {
 			bird.returnWaterCooldown = 100; // 触发后 5 秒冷却防抖
-			BirdWatchMod.LOGGER.info("[Bird:{}] 起飞回水 target=({}, {}, {}) dist={}",
+			BirdWatchMod.LOGGER.debug("[Bird:{}] 起飞回水 target=({}, {}, {}) dist={}",
 				bird.species().id(), waterTarget.getX(), waterTarget.getY(), waterTarget.getZ(),
 				bird.blockPosition().distManhattan(waterTarget));
 			bird.enterGotoFlight(new Vec3(waterTarget.getX() + 0.5, waterTarget.getY(), waterTarget.getZ() + 0.5));

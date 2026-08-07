@@ -63,7 +63,7 @@ public final class ModEntities {
 		if (!net.minecraft.world.entity.ai.attributes.DefaultAttributes.hasSupplier(type)) {
 			BirdWatchMod.LOGGER.error("[BirdWatch] {} 属性注册失败:DefaultAttributes 无对应条目!", species.id());
 		} else {
-			BirdWatchMod.LOGGER.info("[BirdWatch] {} 注册完成(属性自检通过)", species.id());
+			BirdWatchMod.LOGGER.debug("[BirdWatch] {} 注册完成(属性自检通过)", species.id());
 		}
 		registerSpawns(species, type);
 	}
