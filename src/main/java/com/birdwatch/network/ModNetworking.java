@@ -49,6 +49,9 @@ public final class ModNetworking {
 	/** 印刷图按需请求(客户端渲染缓存缺失) */
 	public static final CustomPacketPayload.Type<PrintImageRequestPayload> PRINT_IMAGE_REQUEST =
 		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "print_image_request"));
+	/** 印刷图删除通知(服务端文件已删 → 客户端同步清 print_cache) */
+	public static final CustomPacketPayload.Type<PrintImageDeletePayload> PRINT_IMAGE_DELETE =
+		new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "print_image_delete"));
 
 	public record OpenLensMenuPayload() implements CustomPacketPayload {
 		public static final StreamCodec<RegistryFriendlyByteBuf, OpenLensMenuPayload> CODEC =
@@ -141,6 +144,30 @@ public final class ModNetworking {
 		}
 	}
 
+	/** 印刷图删除通知:服务端文件已删(物品销毁/图鉴消耗),客户端应清对应 print_cache */
+	public record PrintImageDeletePayload(String printId) implements CustomPacketPayload {
+		public static final StreamCodec<RegistryFriendlyByteBuf, PrintImageDeletePayload> CODEC =
+			StreamCodec.composite(
+				ByteBufCodecs.STRING_UTF8, PrintImageDeletePayload::printId,
+				PrintImageDeletePayload::new);
+
+		@Override
+		public Type<? extends CustomPacketPayload> type() {
+			return PRINT_IMAGE_DELETE;
+		}
+	}
+
+	/**
+	 * 广播印刷图删除通知给所有在线玩家(服务端文件已删 → 客户端清对应 print_cache)。
+	 * 物品销毁/图鉴消耗等明确删除路径调用;周期 GC 删除不广播(文件可能长期无引用)。
+	 */
+	public static void broadcastPrintImageDelete(net.minecraft.server.MinecraftServer server, String printId) {
+		PrintImageDeletePayload payload = new PrintImageDeletePayload(printId);
+		for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+			ServerPlayNetworking.send(p, payload);
+		}
+	}
+
 	/** 创建印刷照片物品(服务端/客户端共用) */
 	public static ItemStack createPrintItem(String photoPath, String species, int score, String tier, String crop) {
 		ItemStack print = new ItemStack(ModItems.PHOTO_PRINT);
@@ -178,8 +205,9 @@ public final class ModNetworking {
 	}
 
 	public static void register() {
-		// 服务端 → 客户端:印刷图下发
+		// 服务端 → 客户端:印刷图下发 / 删除通知
 		PayloadTypeRegistry.clientboundPlay().register(PRINT_IMAGE, PrintImagePayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(PRINT_IMAGE_DELETE, PrintImageDeletePayload.CODEC);
 		// 印刷图周期 GC:每 10 分钟清理无引用且超龄的印刷图文件(防存档膨胀)
 		net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
 			if (server.getTickCount() % 12000 == 0 && server.overworld() != null) {
