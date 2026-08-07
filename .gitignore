@@ -17,3 +17,9 @@ bin/
 # OS
 Thumbs.db
 .DS_Store
+
+# 构建产物(发行 jar)
+dist/
+
+# 本地依赖 jar(前置模组不入库,用户自行下载)
+libs/
