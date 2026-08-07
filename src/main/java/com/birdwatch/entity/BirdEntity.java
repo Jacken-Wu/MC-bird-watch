@@ -68,10 +68,6 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 
 	/** 玩家可见的水平朝向锥角(±90°,超出视为在背后) */
 	private static final double SIGHT_CONE_DEGREES = 90.0;
-	/** 警戒冻结时长(约 1.5~2 秒,警戒动画展示窗口) */
-	private static final int ALERT_TICKS = 30;
-	/** 起飞快速扇翅时长(0.6 秒) */
-	private static final int TAKEOFF_TICKS = 12;
 	/** 巡航飞行总时长下限/上限(12~24 秒,随机) */
 	private static final int FLIGHT_MIN_TICKS = 240;
 	private static final int FLIGHT_MAX_TICKS = 480;
@@ -93,8 +89,8 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 	private static final float PATHFINDER_NODE_MULTIPLIER = 4.0F;
 	/** GOTO 到达判定(水平距离,格) */
 	private static final double GOTO_ARRIVE_DISTANCE = 3.0;
-	/** 飞行导航速度系数 */
-	private static final double FLIGHT_NAV_SPEED = 1.0;
+	/** 地面行走导航速度倍率(移动属性值 × 此倍率 = moveTo 速度参数,1.0=全速) */
+	private static final double GROUND_NAV_SPEED_MULTIPLIER = 2.0;
 	/** 非湿地觅食/闲逛的随机点采样半径(格) */
 	private static final int STROLL_SAMPLE_RADIUS = 12;
 
@@ -452,7 +448,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 			return; // 已在起飞/飞行中
 		}
 		setState(State.TAKEOFFING);
-		takeoffTicks = TAKEOFF_TICKS;
+		takeoffTicks = species().takeoffTicks();
 		// 立即升空:无重力 + 上升速度,起飞动画期间可见爬升(否则像原地蹦跳)
 		setNoGravity(true);
 		setDeltaMovement(0, 0.18, 0);
@@ -587,6 +583,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 	/**
 	 * 飞行推进(服务端 tick):由 FlyingPathNavigation 3D 寻路驱动
 	 * (自动绕障/翻越地形),GOTO 飞向目标、CRUISE 定时换随机目标;时长结束自然落地。
+	 * 速度 = 物种 flyingSpeed(0.35 白鹭慢 / 0.6 麻雀快,SpeciesRegistry 调)。
 	 */
 	private void tickFlight() {
 		if (--flightTicksRemaining <= 0) {
@@ -612,7 +609,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 							away = new Vec3(1, 0, 0);
 						}
 						Vec3 target = position().add(away.scale(30.0));
-						getNavigation().moveTo(target.x, groundBelow() + CRUISE_ALTITUDE, target.z, FLIGHT_NAV_SPEED);
+						getNavigation().moveTo(target.x, groundBelow() + CRUISE_ALTITUDE, target.z, species().flyingSpeed());
 					}
 				}
 				return;
@@ -640,7 +637,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 				}
 			}
 			// 先 moveTo 再判结果:换新导航后首 tick 无路径属正常,不能判失败落地
-			if (!getNavigation().moveTo(flyTarget.x, flyTarget.y, flyTarget.z, FLIGHT_NAV_SPEED)) {
+			if (!getNavigation().moveTo(flyTarget.x, flyTarget.y, flyTarget.z, species().flyingSpeed())) {
 				// 首次失败:目标抬升 16 格重试(森林/峡谷地形 A* 失败多为目标被树冠/山脊包围,
 				// 抬高后越障可达;否则原地落地可能落回水中,与自救形成死循环)
 				if (!gotoElevated) {
@@ -649,7 +646,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 						Math.max(groundAt(flyTarget.x, flyTarget.z) + 16.0, position().y + 16.0),
 						flyTarget.z);
 					BirdWatchMod.LOGGER.info("[Bird:{}] GOTO 寻路失败,抬升目标重试", species().id());
-					if (getNavigation().moveTo(flyTarget.x, flyTarget.y, flyTarget.z, FLIGHT_NAV_SPEED)) {
+					if (getNavigation().moveTo(flyTarget.x, flyTarget.y, flyTarget.z, species().flyingSpeed())) {
 						return;
 					}
 				}
@@ -667,7 +664,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 			double dist = 15.0 + getRandom().nextDouble() * 20.0;
 			Vec3 dir = Vec3.directionFromRotation(yaw, 0.0F);
 			Vec3 target = position().add(dir.scale(dist));
-			getNavigation().moveTo(target.x, groundAt(target.x, target.z) + CRUISE_ALTITUDE, target.z, FLIGHT_NAV_SPEED);
+			getNavigation().moveTo(target.x, groundAt(target.x, target.z) + CRUISE_ALTITUDE, target.z, species().flyingSpeed());
 		} else if (!getNavigation().isInProgress()) {
 			// 寻路失败时清除移动意图,防止原地旋转/跳跃
 			getNavigation().stop();
@@ -792,9 +789,11 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 	}
 
 	/**
-	 * 落水自救:起飞飞向最近干燥可站立点(落点 3 格内无水)。
-	 * 触发规则(用户定稿):
-	 * - 非水鸟:沾水即自救(鸟不待在水里,哪怕浅水也飞走);
+	 * 落水自救:起飞飞向陆地。触发规则(用户定稿):
+	 * - 非水鸟:沾水即自救(鸟不待在水里,哪怕浅水也飞走),落点选择「先高处后岸边」:
+	 *   ① 优先飞向地势更高的干燥点(脱离低洼水域环境);
+	 *   ② 其次水平 64 格内干燥点(3 格内无水,防再次落水死循环);
+	 *   ③ 兜底岸边干燥点(本身无水、脚下实心即可,放宽 3 格内无水 —— 水边没水的地方)。
 	 * - 水鸟:仅头部没入水中(会窒息)才救,浅水/深水游泳都是主场。
 	 * 背景:26.2 的 AMBIENT 类别自然生成判定宽松,鸟会生成在水面上;
 	 * 且鸟的浮力不足以长期维持,头在水下会缺氧窒息死亡(用户实测麻雀淹死)。
@@ -807,6 +806,45 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 		DrowningEscapeGoal(BirdEntity bird) {
 			this.bird = bird;
 			setFlags(EnumSet.of(Flag.MOVE));
+		}
+
+		/** 非水鸟落点三阶段采样:先高处、再水平干燥、最后岸边兜底 */
+		private boolean findNonWaterbirdLanding() {
+			BlockPos base = bird.blockPosition();
+			int baseY = base.getY();
+			// ① 高处优先:水平采样后向下扫描地面,选高于当前高度的干燥点(3 格内无水),
+			//    脱离低洼水域环境(深坑/峡谷底的鸟借此飞上高处)
+			for (int i = 0; i < 96; i++) {
+				BlockPos sample = base.offset(
+					bird.getRandom().nextInt(129) - 64, 0, bird.getRandom().nextInt(129) - 64);
+				int groundY = (int) Math.floor(bird.groundAt(sample.getX() + 0.5, sample.getZ() + 0.5));
+				BlockPos candidate = new BlockPos(sample.getX(), groundY, sample.getZ());
+				if (groundY > baseY
+					&& bird.standableAt(candidate) && bird.isDryLand(candidate)) {
+					landTarget = candidate;
+					return true;
+				}
+			}
+			// ② 水平干燥:64 格内「干燥且远离水域」的落点(3 格内无水):
+			// 避免飞到水边小块干燥地后再次落水,与自救形成死循环
+			for (int i = 0; i < 96; i++) {
+				BlockPos candidate = base.offset(
+					bird.getRandom().nextInt(129) - 64, 0, bird.getRandom().nextInt(129) - 64);
+				if (bird.standableAt(candidate) && bird.isDryLand(candidate)) {
+					landTarget = candidate;
+					return true;
+				}
+			}
+			// ③ 岸边兜底:本身无水、脚下实心即可(水边没水的地方),放宽 3 格内无水限制
+			for (int i = 0; i < 96; i++) {
+				BlockPos candidate = base.offset(
+					bird.getRandom().nextInt(129) - 64, 0, bird.getRandom().nextInt(129) - 64);
+				if (bird.standableAt(candidate)) {
+					landTarget = candidate;
+					return true;
+				}
+			}
+			return false;
 		}
 
 		@Override
@@ -826,18 +864,7 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 				// 缓存存在时序,导致「遇水不一定会飞走」)
 				return false;
 			}
-			// 64 格半径内采样「干燥且远离水域」的落点(3 格内无水):
-			// 避免飞到水边小块干燥地后再次落水,与自救形成死循环
-			BlockPos base = bird.blockPosition();
-			for (int i = 0; i < 96; i++) {
-				BlockPos candidate = base.offset(
-					bird.getRandom().nextInt(129) - 64, 0, bird.getRandom().nextInt(129) - 64);
-				if (bird.standableAt(candidate) && bird.isDryLand(candidate)) {
-					landTarget = candidate;
-					return true;
-				}
-			}
-			return false;
+			return findNonWaterbirdLanding();
 		}
 
 		@Override
@@ -901,9 +928,10 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 					nearest = player;
 				}
 			}
-			// 警戒阶段:立定、面向威胁,停顿后起飞
+			// 警戒阶段:立定、面向威胁,停顿后起飞(时长按物种:白鹭数秒 / 麻雀短暂)
 			alertTarget = nearest;
-			alertTicks = ALERT_TICKS + bird.getRandom().nextInt(10);
+			alertTicks = bird.species().alertTicksMin()
+				+ bird.getRandom().nextInt(bird.species().alertTicksMax() - bird.species().alertTicksMin() + 1);
 			bird.setState(State.ALERTING);
 			bird.getNavigation().stop();
 		}
@@ -1039,7 +1067,8 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 				|| bird.getState() == State.SLEEPING || bird.getState() == State.ALERTING) {
 				return false;
 			}
-			if (!bird.getNavigation().isDone() || bird.getRandom().nextInt(40) != 0) {
+			if (!bird.getNavigation().isDone()
+				|| bird.getRandom().nextInt(bird.species().forageChanceDivider()) != 0) {
 				return false;
 			}
 			// 随机采样目标(最多 8 次尝试);湿地要求水边;
@@ -1066,9 +1095,11 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 		@Override
 		public void start() {
 			// 走路阶段保持 IDLE(走 walk 动画);到点后 tick 里才切 FORAGING
-			restTicks = 80 + bird.getRandom().nextInt(120); // 到点后低头啄食 4~10 秒
+			// 啄食时长按物种:白鹭蹲守(10~20 秒)/ 麻雀啄几下就走(2~4 秒)
+			restTicks = bird.species().forageRestMin() + bird.getRandom()
+				.nextInt(bird.species().forageRestMax() - bird.species().forageRestMin() + 1);
 			bird.getNavigation().moveTo(walkTarget.getX() + 0.5, walkTarget.getY(),
-				walkTarget.getZ() + 0.5, 0.5);
+				walkTarget.getZ() + 0.5, bird.species().movementSpeed() * GROUND_NAV_SPEED_MULTIPLIER);
 		}
 
 		@Override
@@ -1215,7 +1246,8 @@ public class BirdEntity extends PathfinderMob implements GeoEntity {
 			if (fly) {
 				bird.enterGotoFlight(new Vec3(target.getX() + 0.5, target.getY(), target.getZ() + 0.5));
 			} else {
-				bird.getNavigation().moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, 0.6);
+				bird.getNavigation().moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5,
+					bird.species().movementSpeed() * GROUND_NAV_SPEED_MULTIPLIER);
 			}
 		}
 	}

@@ -39,6 +39,12 @@ import java.util.List;
  * @param strollFlyMinDist 闲逛飞行距离下限(湿地探索 / 非湿地短途跳跃共用)
  * @param strollFlyMaxDist 闲逛飞行距离上限
  * @param forageNearWater  觅食目标是否要求水边(湿地觅食)
+ * @param alertTicksMin    警戒冻结时长下限(tick):中大体型鸟(白鹭)远距离警戒后多停几秒
+ * @param alertTicksMax    警戒冻结时长上限(tick)
+ * @param takeoffTicks     起飞快速扇翅时长(tick):大体型慢起飞、小体型瞬间离地
+ * @param forageRestMin    觅食到点后低头啄食时长下限(tick):白鹭蹲守 vs 麻雀啄几下就走
+ * @param forageRestMax    觅食到点后低头啄食时长上限(tick)
+ * @param forageChanceDivider 觅食触发概率 1/N:白鹭低频蹲守(大 N),麻雀高频换点(小 N)
  * @param ambient          鸣叫(听声辨位音源)
  * @param scared           受惊叫(起飞时)
  * @param hurt             受伤
@@ -71,6 +77,12 @@ public record BirdSpecies(
 	double strollFlyMinDist,
 	double strollFlyMaxDist,
 	boolean forageNearWater,
+	int alertTicksMin,
+	int alertTicksMax,
+	int takeoffTicks,
+	int forageRestMin,
+	int forageRestMax,
+	int forageChanceDivider,
 	SoundEvent ambient,
 	SoundEvent scared,
 	SoundEvent hurt,
