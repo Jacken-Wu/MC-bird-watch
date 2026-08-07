@@ -309,12 +309,18 @@ public class PrintScreen extends Screen {
 		}
 	}
 
-	/** 等比缩放到最大边 ≤ maxSide;已满足则不缩放(返回原图) */
+	/**
+	 * 等比缩放到最大边 ≤ maxSide;已满足则返回独立拷贝(不能返回原对象 ——
+	 * 调用方会 close 原图,返回同一对象会导致 writeToFile 抛
+	 * "Image is not allocated"(实测踩坑)。
+	 */
 	private static NativeImage scaleMaxSide(NativeImage img, int maxSide) {
 		int w = img.getWidth();
 		int h = img.getHeight();
 		if (w <= maxSide && h <= maxSide) {
-			return img;
+			NativeImage copy = new NativeImage(w, h, true);
+			copy.copyFrom(img);
+			return copy;
 		}
 		double scale = (double) maxSide / Math.max(w, h);
 		int nw = Math.max(1, (int) Math.round(w * scale));

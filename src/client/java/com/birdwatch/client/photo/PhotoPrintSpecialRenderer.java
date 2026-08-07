@@ -129,17 +129,25 @@ public class PhotoPrintSpecialRenderer implements SpecialModelRenderer<PhotoPrin
 
 	/**
 	 * 加载印刷图 → 按裁剪矩形裁切 → 注册动态纹理;失败返回 null。
-	 * 图片数据在服务端存档:优先读客户端缓存 print_cache/&lt;printId&gt;.png,
+	 * 新架构(photo=printId):读客户端缓存 print_cache/&lt;printId&gt;.png,
 	 * 缺失时向服务端请求(本次渲染返回 null,缓存就绪后下一帧自然显示)。
+	 * 旧架构兼容(photo=路径):读旧照片根。
 	 */
 	private static Identifier loadCropTexture(String photoPath, double cropX, double cropY, double cropW, double cropH) {
 		try {
-			Path png = com.birdwatch.client.photo.PhotoStorage.printCacheRoot().resolve(photoPath + ".png");
-			if (!Files.exists(png)) {
-				// 按需请求服务端(印刷图存服务端,多人模式下本机可能没有该文件)
-				net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
-					new com.birdwatch.network.ModNetworking.PrintImageRequestPayload(photoPath));
-				return null;
+			Path png;
+			if (photoPath.contains("/") || photoPath.contains(".png")) {
+				// 旧架构:路径形式,读旧照片根
+				png = com.birdwatch.client.photo.PhotoStorage.resolvePhoto(photoPath);
+			} else {
+				// 新架构:printId,读缓存;缺失时按需请求服务端(印刷图存服务端,
+				// 多人模式下本机可能没有该文件)
+				png = com.birdwatch.client.photo.PhotoStorage.printCacheRoot().resolve(photoPath + ".png");
+				if (!Files.exists(png)) {
+					net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
+						new com.birdwatch.network.ModNetworking.PrintImageRequestPayload(photoPath));
+					return null;
+				}
 			}
 			NativeImage source;
 			try (InputStream in = Files.newInputStream(png)) {

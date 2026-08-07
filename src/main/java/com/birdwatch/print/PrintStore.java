@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -50,6 +51,74 @@ public final class PrintStore {
 	/** 印刷图目录:<世界存档>/birdwatch/prints */
 	public static Path printsDir(MinecraftServer server) {
 		return server.getWorldPath(LevelResource.ROOT).resolve("birdwatch").resolve("prints");
+	}
+
+	// ------------------------------------------------------------------
+	// 图鉴槽位引用表:贴入图鉴的照片不删文件,由槽位持有引用;
+	// 更换时引用转移给返还物品,物品销毁时(onDestroyed)才删。
+	// 持久化到 <存档>/birdwatch/prints/slots.json(species → printId)。
+	// ------------------------------------------------------------------
+
+	/** 槽位引用表文件:<存档>/birdwatch/prints/slots.json */
+	private static Path slotsFile(MinecraftServer server) {
+		return printsDir(server).resolve("slots.json");
+	}
+
+	/** 读槽位引用表;文件不存在返回空表 */
+	private static Map<String, String> readSlots(MinecraftServer server) {
+		Path f = slotsFile(server);
+		try {
+			if (Files.exists(f)) {
+				Map<String, String> m = new java.util.LinkedHashMap<>();
+				var obj = com.google.gson.JsonParser.parseString(Files.readString(f)).getAsJsonObject();
+				obj.asMap().forEach((k, v) -> m.put(k, v.getAsString()));
+				return m;
+			}
+		} catch (Exception e) {
+			BirdWatchMod.LOGGER.error("[Print] 槽位引用表读取失败", e);
+		}
+		return new java.util.LinkedHashMap<>();
+	}
+
+	/** 写槽位引用表 */
+	private static void writeSlots(MinecraftServer server, Map<String, String> slots) {
+		try {
+			Path f = slotsFile(server);
+			Files.createDirectories(f.getParent());
+			Files.writeString(f, GSON.toJson(slots), StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			BirdWatchMod.LOGGER.error("[Print] 槽位引用表写入失败", e);
+		}
+	}
+
+	/** 图鉴贴入:登记槽位引用(species → printId),文件保留 */
+	public static void bindSlot(MinecraftServer server, String species, String printId) {
+		Map<String, String> slots = readSlots(server);
+		slots.put(species, printId);
+		writeSlots(server, slots);
+	}
+
+	/**
+	 * 图鉴更换:解除旧槽位引用并返回旧 printId(返还物品继续持有引用,文件保留);
+	 * 无旧槽位返回 null。
+	 */
+	public static String unbindSlot(MinecraftServer server, String species) {
+		Map<String, String> slots = readSlots(server);
+		String old = slots.remove(species);
+		if (old != null) {
+			writeSlots(server, slots);
+		}
+		return old;
+	}
+
+	/** 槽位引用集合(GC 引用收集用):所有槽位持有的 printId */
+	private static Set<String> slotReferenced(MinecraftServer server) {
+		return new HashSet<>(readSlots(server).values());
+	}
+
+	/** 该 printId 是否被任一图鉴槽位持有(贴入图鉴的照片不删文件) */
+	public static boolean isSlotReferenced(MinecraftServer server, String printId) {
+		return readSlots(server).containsValue(printId);
 	}
 
 	/**
@@ -141,7 +210,8 @@ public final class PrintStore {
 
 	/**
 	 * 周期清理(服务端,每 10 分钟):
-	 * 收集全服引用 = 在线玩家背包 + 末影箱 + 已加载 ItemEntity/ItemFrame 中的印刷物品 printId;
+	 * 收集全服引用 = 在线玩家背包 + 末影箱 + 已加载 ItemEntity/ItemFrame 中的印刷物品 printId
+	 * + 图鉴槽位引用表(贴入图鉴的照片由槽位持有,不删);
 	 * 删除无引用且文件 mtime 超过 GC_AGE 的文件。
 	 * 24h 缓冲:未加载区块容器里的物品引用收集不到,缓冲期内不会被误删;
 	 * 长期无人触碰(未加载区块中的印刷物品)才会被清理 —— 与「物品销毁即删」的目标一致。
@@ -151,7 +221,7 @@ public final class PrintStore {
 		if (!Files.isDirectory(dir)) {
 			return;
 		}
-		Set<String> referenced = new HashSet<>();
+		Set<String> referenced = slotReferenced(level.getServer());
 		for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
 			collectFromInventory(player.getInventory(), referenced);
 			collectFromInventory(player.getEnderChestInventory(), referenced);

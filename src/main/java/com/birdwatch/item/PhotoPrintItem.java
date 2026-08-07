@@ -63,6 +63,7 @@ public class PhotoPrintItem extends Item {
 
 	/**
 	 * 物品实体被销毁(烧毁/爆炸/仙人掌等)→ 删除绑定的印刷图文件。
+	 * 仅当该 printId 不被任何图鉴槽位持有(贴入图鉴的由槽位持有,不删)。
 	 * 注意:掉落物自然消失(5 分钟,age≥6000)不触发本回调,由 PrintStore 周期 GC 兜底。
 	 */
 	@Override
@@ -72,11 +73,10 @@ public class PhotoPrintItem extends Item {
 			return;
 		}
 		String printId = data.copyTag().getString(KEY_PHOTO).orElse("");
-		if (printId.isBlank()) {
-			return;
-		}
-		if (PrintStore.delete(serverLevel.getServer(), printId)) {
-			BirdWatchMod.LOGGER.info("[Print] 物品销毁,已删除印刷图 {}", printId);
+		if (printId.isBlank() || !PrintStore.isSlotReferenced(serverLevel.getServer(), printId)) {
+			if (PrintStore.delete(serverLevel.getServer(), printId)) {
+				BirdWatchMod.LOGGER.info("[Print] 物品销毁,已删除印刷图 {}", printId);
+			}
 		}
 	}
 }

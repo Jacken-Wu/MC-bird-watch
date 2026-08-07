@@ -309,8 +309,11 @@ public class HandbookScreen extends Screen {
 				graphics.blit(tex.id(), dx, dy, dx + dw, dy + dh, 0.0f, 1.0f, 0.0f, 1.0f);
 				hasPhoto = true;
 			} else {
-				// 解锁但无照片(异常态):显示物种纹理
-				graphics.blit(speciesTexture(), px, py, px + pW, py + pH, 0.0f, 1.0f, 0.0f, 1.0f);
+				// 解锁但照片缺失(缓存加载中/文件不存在):深色占位,不显示物种模型贴图
+				graphics.fill(px, py, px + pW, py + pH, 0xFF141414);
+				Component loading = Component.translatable("screen.birdwatch.handbook.photo_missing");
+				graphics.text(mc.font, loading, px + pW / 2 - mc.font.width(loading) / 2,
+					py + pH / 2 - 6, 0xFF666666);
 			}
 		} else {
 			// 未解锁:干净的深色剪影(不显示贴图)
@@ -541,18 +544,26 @@ public class HandbookScreen extends Screen {
 	/**
 	 * 照片预览:读印刷图(printId,客户端缓存),按印刷裁剪矩形裁切后注册纹理。
 	 * 缓存缺失时向服务端请求(印刷图存服务端),返回 null 待缓存就绪后重绘。
+	 * 旧架构兼容:photo 为路径(含 "/" 或 ".png")时读旧照片根。
 	 */
-	private PhotoTex textureForPhoto(String printId, String crop) {
-		String cacheKey = printId + "#" + (crop == null ? "" : crop);
+	private PhotoTex textureForPhoto(String photo, String crop) {
+		String cacheKey = photo + "#" + (crop == null ? "" : crop);
 		PhotoTex cached = textureCache.get(cacheKey);
 		if (cached != null) {
 			return cached;
 		}
-		Path png = com.birdwatch.client.photo.PhotoStorage.printCacheRoot().resolve(printId + ".png");
-		if (!Files.exists(png)) {
-			net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
-				new com.birdwatch.network.ModNetworking.PrintImageRequestPayload(printId));
-			return null;
+		Path png;
+		if (photo.contains("/") || photo.contains(".png")) {
+			// 旧架构:路径形式,读旧照片根
+			png = com.birdwatch.client.photo.PhotoStorage.resolvePhoto(photo);
+		} else {
+			// 新架构:printId,读缓存;缺失时按需请求服务端
+			png = com.birdwatch.client.photo.PhotoStorage.printCacheRoot().resolve(photo + ".png");
+			if (!Files.exists(png)) {
+				net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
+					new com.birdwatch.network.ModNetworking.PrintImageRequestPayload(photo));
+				return null;
+			}
 		}
 		double[] c = parseCrop(crop);
 		try (InputStream in = Files.newInputStream(png)) {
@@ -571,7 +582,7 @@ public class HandbookScreen extends Screen {
 			source.close();
 			Identifier id = Identifier.fromNamespaceAndPath(BirdWatchMod.MOD_ID, "hb_" + cacheKey.hashCode());
 			Minecraft.getInstance().getTextureManager().register(id,
-				new DynamicTexture(() -> "birdwatch handbook " + printId, image));
+				new DynamicTexture(() -> "birdwatch handbook " + photo, image));
 			PhotoTex tex = new PhotoTex(id, w, h);
 			textureCache.put(cacheKey, tex);
 			return tex;

@@ -34,7 +34,11 @@ public class PhotoPreviewScreen extends Screen {
 		loadTexture();
 	}
 
-	/** 按裁剪矩形裁切照片并注册纹理 */
+	/**
+	 * 按裁剪矩形裁切照片并注册纹理。
+	 * 新架构:photo = printId,读客户端 print_cache(缺失时请求服务端);
+	 * 旧架构兼容:photo 为路径(含 "/" 或 ".png"),走旧照片根解析。
+	 */
 	private void loadTexture() {
 		var data = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
 		if (data == null) {
@@ -46,7 +50,19 @@ public class PhotoPreviewScreen extends Screen {
 			return;
 		}
 		double[] crop = parseCrop(tag.getString(PhotoPrintItem.KEY_CROP).orElse(""));
-		Path png = com.birdwatch.client.photo.PhotoStorage.resolvePhoto(photo);
+		Path png;
+		if (photo.contains("/") || photo.contains(".png")) {
+			// 旧架构:路径形式,读旧照片根
+			png = com.birdwatch.client.photo.PhotoStorage.resolvePhoto(photo);
+		} else {
+			// 新架构:printId,读客户端缓存;缺失时按需请求服务端
+			png = com.birdwatch.client.photo.PhotoStorage.printCacheRoot().resolve(photo + ".png");
+			if (!Files.exists(png)) {
+				net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
+					new com.birdwatch.network.ModNetworking.PrintImageRequestPayload(photo));
+				return;
+			}
+		}
 		try (InputStream in = Files.newInputStream(png)) {
 			NativeImage source = NativeImage.read(in);
 			int w = Math.max(1, (int) Math.round(source.getWidth() * crop[2]));

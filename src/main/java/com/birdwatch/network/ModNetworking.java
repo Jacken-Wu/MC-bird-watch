@@ -207,21 +207,24 @@ public final class ModNetworking {
 		ServerPlayNetworking.registerGlobalReceiver(HANDBOOK_UNLOCK, (payload, context) -> {
 			ServerPlayer player = context.player();
 			context.server().execute(() -> {
-				// 旧照片返还(替换槽位时):引用转移给返还物品,印刷图文件保留
-				if (!payload.oldPhoto().isEmpty() && !payload.oldPhoto().equals(payload.newPhoto())) {
-					ItemStack oldPrint = createPrintItem(payload.oldPhoto(),
-						payload.species(), readScoreFromJson(player, payload.oldPhoto()),
-						"", payload.oldCrop());
+				// 旧照片返还(更换槽位时):从槽位引用表取旧 printId,引用转移给返还物品,
+				// 印刷图文件保留(槽位不再持有,由返还物品持有)。
+				// 裁剪已烘焙进印刷图文件,返还物品 crop 恒为全图 "0,0,1,1"
+				String oldPrintId = com.birdwatch.print.PrintStore.unbindSlot(context.server(), payload.species());
+				if (oldPrintId != null && !oldPrintId.equals(payload.newPhoto())) {
+					ItemStack oldPrint = createPrintItem(oldPrintId,
+						payload.species(), readScoreFromJson(player, oldPrintId),
+						"", "0,0,1,1");
 					if (!player.getInventory().add(oldPrint)) {
 						player.drop(oldPrint, false);
 					}
 				}
-				// 消耗新照片物品(服务端,防幽灵)→ 物品销毁,印刷图文件删除
+				// 消耗新照片物品(服务端,防幽灵);印刷图文件不删 —— 槽位登记引用持有
 				ItemStack newPrint = findPrint(player, payload.newPhoto());
 				if (!newPrint.isEmpty()) {
 					newPrint.shrink(1);
-					com.birdwatch.print.PrintStore.delete(context.server(), payload.newPhoto());
 				}
+				com.birdwatch.print.PrintStore.bindSlot(context.server(), payload.species(), payload.newPhoto());
 				// 主动下发新印刷图给贴入玩家(槽位渲染立即可用,无需再请求)
 				com.birdwatch.print.PrintStore.readPng(context.server(), payload.newPhoto())
 					.ifPresent(bytes -> ServerPlayNetworking.send(player,
