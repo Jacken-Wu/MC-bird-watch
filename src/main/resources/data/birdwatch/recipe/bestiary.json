@@ -1,14 +1,12 @@
 {
-	"type": "minecraft:crafting_shaped",
-	"key": {
-		"P": "minecraft:paper",
-		"B": "minecraft:bone",
-		"L": "minecraft:leather"
-	},
-	"pattern": [
-		"PP ",
-		"PBP",
-		"LL "
+	"type": "minecraft:crafting_shapeless",
+	"ingredients": [
+		{
+			"item": "minecraft:book"
+		},
+		{
+			"item": "minecraft:leather"
+		}
 	],
 	"result": {
 		"count": 1,

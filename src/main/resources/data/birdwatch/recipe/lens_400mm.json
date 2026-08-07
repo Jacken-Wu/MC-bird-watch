@@ -1,13 +1,33 @@
 {
-	"type": "minecraft:crafting_shaped",
-	"key": {
-		"G": "minecraft:glass",
-		"C": "minecraft:copper_ingot"
-	},
-	"pattern": [
-		"CCC",
-		"CGC",
-		"CCC"
+	"type": "minecraft:crafting_shapeless",
+	"ingredients": [
+		{
+			"item": "minecraft:glass"
+		},
+		{
+			"item": "minecraft:copper_ingot"
+		},
+		{
+			"item": "minecraft:copper_ingot"
+		},
+		{
+			"item": "minecraft:copper_ingot"
+		},
+		{
+			"item": "minecraft:copper_ingot"
+		},
+		{
+			"item": "minecraft:copper_ingot"
+		},
+		{
+			"item": "minecraft:copper_ingot"
+		},
+		{
+			"item": "minecraft:copper_ingot"
+		},
+		{
+			"item": "minecraft:copper_ingot"
+		}
 	],
 	"result": {
 		"count": 1,
